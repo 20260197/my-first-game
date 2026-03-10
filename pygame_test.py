@@ -2,81 +2,88 @@ import pygame
 import random
 import math
 
-# --- 상수는 대문자로 관리하여 가독성 향상 ---
-WIDTH, HEIGHT = 900, 600
+# --- 설정 상수 ---
+WIDTH, HEIGHT = 1600, 900
 FPS = 60
-GRAVITY = 0.08
-PARTICLE_COUNT = 8  # 한 번 클릭 시 생성되는 파티클 수
+GRAVITY = 0.15      # 중력을 조금 더 키워 묵직하게 변경
+BOUNCE = -0.6       # 바닥에 닿았을 때 튕기는 힘 (에너지 손실 포함)
+FRICTION = 0.99     # 공기 저항 (매 프레임 속도 유지 비율)
 
 class Particle:
     def __init__(self, x, y):
         self.pos = pygame.Vector2(x, y)
         
-        # 벡터를 사용하여 속도와 방향을 한 번에 설정
+        # 360도 방향으로 랜덤하게 발사
         angle = random.uniform(0, math.pi * 2)
-        speed = random.uniform(1, 6)
+        speed = random.uniform(2, 8)
         self.vel = pygame.Vector2(math.cos(angle), math.sin(angle)) * speed
 
-        self.life = random.randint(40, 80)
-        self.size = random.randint(3, 7)
-        self.color = [random.randint(100, 255) for _ in range(3)]
+        self.max_life = random.randint(60, 100)
+        self.life = self.max_life
+        self.size = random.randint(4, 8)
+        self.base_color = [random.randint(150, 255), random.randint(50, 150), 255]
 
     def update(self):
-        self.pos += self.vel    # 위치 이동
-        self.vel.y += GRAVITY   # 중력 가속도
+        # 1. 물리 연산
+        self.vel.y += GRAVITY   # 중력 적용
+        self.vel *= FRICTION    # 공기 저항 적용
+        self.pos += self.vel    # 이동
+
+        # 2. 바닥 튕기기 처리
+        if self.pos.y + self.size > HEIGHT:
+            self.pos.y = HEIGHT - self.size
+            self.vel.y *= BOUNCE # 속도를 반대로 뒤집고 위로 튕김
+            self.vel.x *= 0.8    # 바닥 마찰로 인해 수평 속도 감소
+
+        # 3. 수명 감소
         self.life -= 1
 
     def draw(self, surf):
+        # 수명에 비례해서 투명도 계산 (색상을 어둡게 만들어 투명해지는 효과 연출)
+        alpha_ratio = self.life / self.max_life
+        current_color = [max(0, int(c * alpha_ratio)) for c in self.base_color]
+        
         if self.life > 0:
-            pygame.draw.circle(surf, self.color, (int(self.pos.x), int(self.pos.y)), self.size)
+            pygame.draw.circle(surf, current_color, (int(self.pos.x), int(self.pos.y)), int(self.size * alpha_ratio))
 
     @property
     def is_alive(self):
         return self.life > 0
 
-def draw_background(surface, t):
-    # 성능을 위해 2픽셀 단위로 그리기 (선택 사항)
-    for y in range(0, HEIGHT, 2):
-        c = int(40 + 30 * math.sin(y * 0.01 + t))
-        color = (10, c, 50 + c // 2)
-        pygame.draw.line(surface, color, (0, y), (WIDTH, y), 2)
-
 def main():
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption("Fancy Particle Playground")
+    pygame.display.set_caption("Ultimate Particle System")
     clock = pygame.time.Clock()
 
     particles = []
     time_val = 0
-    running = True
 
-    while running:
-        # 1. 이벤트 처리
+    while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                running = False
+                pygame.quit()
+                return
 
-        # 2. 로직 처리 (마우스 입력 및 파티클 생성)
+        # 마우스 클릭/드래그 시 파티클 생성
         if pygame.mouse.get_pressed()[0]:
             mx, my = pygame.mouse.get_pos()
-            particles.extend([Particle(mx, my) for _ in range(PARTICLE_COUNT)])
+            for _ in range(5):
+                particles.append(Particle(mx, my))
 
-        # 3. 그리기 및 업데이트
-        time_val += 0.03
-        draw_background(screen, time_val)
+        # 배경 그리기 (잔상 효과를 위해 살짝 덮기 혹은 함수 호출)
+        screen.fill((10, 10, 20)) 
 
+        # 파티클 업데이트 및 그리기
         for p in particles:
             p.update()
             p.draw(screen)
 
-        # 수명이 다한 파티클 제거 (필터링)
+        # 죽은 파티클 제거
         particles = [p for p in particles if p.is_alive]
 
         pygame.display.flip()
         clock.tick(FPS)
-
-    pygame.quit()
 
 if __name__ == "__main__":
     main()
