@@ -5,46 +5,66 @@ import math
 # --- 설정 상수 ---
 WIDTH, HEIGHT = 1600, 900
 FPS = 60
-GRAVITY = 0.15      # 중력을 조금 더 키워 묵직하게 변경
-BOUNCE = -0.6       # 바닥에 닿았을 때 튕기는 힘 (에너지 손실 포함)
-FRICTION = 0.99     # 공기 저항 (매 프레임 속도 유지 비율)
+GRAVITY = 0.12
+BOUNCE = -0.65
+FRICTION = 0.992
 
 class Particle:
     def __init__(self, x, y):
         self.pos = pygame.Vector2(x, y)
         
-        # 360도 방향으로 랜덤하게 발사
+        # 1. 속도와 방향 (더 폭발적인 느낌을 위해 속도 범위 상향)
         angle = random.uniform(0, math.pi * 2)
-        speed = random.uniform(2, 8)
+        speed = random.uniform(3, 10)
         self.vel = pygame.Vector2(math.cos(angle), math.sin(angle)) * speed
 
-        self.max_life = random.randint(60, 100)
+        # 2. 수명 및 크기
+        self.max_life = random.randint(60, 120)
         self.life = self.max_life
-        self.size = random.randint(4, 8)
-        self.base_color = [random.randint(150, 255), random.randint(50, 150), 255]
+        self.size = random.randint(4, 9)
+
+        # 3. 색상 설정 (HSV 활용)
+        # 시작 색상을 무지개색(0~360도) 중 하나로 선택
+        self.hue = random.uniform(0, 360) 
+        self.color = pygame.Color(0, 0, 0)
+        # 색상이 변하는 속도
+        self.hue_shift = random.uniform(1, 3) 
 
     def update(self):
-        # 1. 물리 연산
-        self.vel.y += GRAVITY   # 중력 적용
-        self.vel *= FRICTION    # 공기 저항 적용
-        self.pos += self.vel    # 이동
+        # 물리 연산
+        self.vel.y += GRAVITY
+        self.vel *= FRICTION
+        self.pos += self.vel
 
-        # 2. 바닥 튕기기 처리
+        # 바닥 튕기기
         if self.pos.y + self.size > HEIGHT:
             self.pos.y = HEIGHT - self.size
-            self.vel.y *= BOUNCE # 속도를 반대로 뒤집고 위로 튕김
-            self.vel.x *= 0.8    # 바닥 마찰로 인해 수평 속도 감소
+            self.vel.y *= BOUNCE
+            self.vel.x *= 0.9
 
-        # 3. 수명 감소
+        # 색상 변화 (시간이 흐를수록 무지개색으로 변함)
+        self.hue = (self.hue + self.hue_shift) % 360
         self.life -= 1
 
     def draw(self, surf):
-        # 수명에 비례해서 투명도 계산 (색상을 어둡게 만들어 투명해지는 효과 연출)
-        alpha_ratio = self.life / self.max_life
-        current_color = [max(0, int(c * alpha_ratio)) for c in self.base_color]
-        
         if self.life > 0:
-            pygame.draw.circle(surf, current_color, (int(self.pos.x), int(self.pos.y)), int(self.size * alpha_ratio))
+            # 수명에 따른 투명도 및 명도 조절
+            alpha_ratio = self.life / self.max_life
+            
+            # HSV를 RGB로 변환 (채도 100%, 명도 100%로 고정하여 아주 화사함)
+            # 수명이 다할수록 명도(Value)를 낮춤
+            self.color.hsva = (self.hue, 100, 100 * alpha_ratio, 100)
+            
+            # 크기도 서서히 줄어듦
+            current_size = max(1, int(self.size * alpha_ratio))
+            
+            # 파티클 그리기
+            pygame.draw.circle(surf, self.color, (int(self.pos.x), int(self.pos.y)), current_size)
+            
+            # 선택 사항: 더 화려하게 만들고 싶다면 주변에 작은 '빛무리' 효과를 추가 (살짝 더 연하게)
+            # glow_color = pygame.Color(0,0,0)
+            # glow_color.hsva = (self.hue, 80, 100 * alpha_ratio, 50)
+            # pygame.draw.circle(surf, glow_color, (int(self.pos.x), int(self.pos.y)), current_size + 2, 1)
 
     @property
     def is_alive(self):
@@ -52,27 +72,27 @@ class Particle:
 
 def main():
     pygame.init()
+    # 전체화면 혹은 큰 화면 권장
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption("Ultimate Particle System")
+    pygame.display.set_caption("Colorful Rainbow Fireworks")
     clock = pygame.time.Clock()
 
     particles = []
-    time_val = 0
+    running = True
 
-    while True:
+    while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                pygame.quit()
-                return
+                running = False
 
-        # 마우스 클릭/드래그 시 파티클 생성
+        # 마우스 클릭/드래그 시 파티클 생성 (더 많이 생성하여 화려함 강조)
         if pygame.mouse.get_pressed()[0]:
             mx, my = pygame.mouse.get_pos()
-            for _ in range(5):
+            for _ in range(10): 
                 particles.append(Particle(mx, my))
 
-        # 배경 그리기 (잔상 효과를 위해 살짝 덮기 혹은 함수 호출)
-        screen.fill((10, 10, 20)) 
+        # 배경색: 완전 검은색보다 약간 깊은 남색이 색을 더 돋보이게 합니다.
+        screen.fill((5, 5, 15)) 
 
         # 파티클 업데이트 및 그리기
         for p in particles:
@@ -84,6 +104,8 @@ def main():
 
         pygame.display.flip()
         clock.tick(FPS)
+
+    pygame.quit()
 
 if __name__ == "__main__":
     main()
