@@ -10,13 +10,11 @@
 
 ## 구현 순서 
 ### Q1 -  이 코드에서 AABB를 화면에 그리는 부분만 설명해줘. 그리고 pygame.draw.rect 의 인자가 각각 뭘 의미하는지 포함해줘.
-- 코드의 하단 그리기(draw) 섹션에 위치한 이 두 줄이 AABB를 화면에 표시하는 역할을 합니다.
-
-# 1. 원형 플레이어를 감싸는 AABB 테두리 그리기
-pygame.draw.rect(screen, AABB_RED, player_aabb, 2)
-
-# 2. 고정 사각형의 AABB 테두리 그리기
-pygame.draw.rect(screen, AABB_RED, fixed_rect_aabb, 2)
+1. 코드의 하단 그리기(draw) 섹션에 위치한 이 두 줄이 AABB를 화면에 표시하는 역할을 합니다.
+1-1. 원형 플레이어를 감싸는 AABB 테두리 그리기
+- pygame.draw.rect(screen, AABB_RED, player_aabb, 2)
+1-2. 고정 사각형의 AABB 테두리 그리기
+- pygame.draw.rect(screen, AABB_RED, fixed_rect_aabb, 2)
 
 > pygame.draw.rect 인자 상세 설명
 > pygame.draw.rect(surface, color, rect, width)의 각 인자는 다음과 같은 의미를 가집니다.
