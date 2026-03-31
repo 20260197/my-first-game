@@ -26,12 +26,13 @@ RED   = (220, 50, 50)
 YELLOW = (240, 200, 0)
 GRAY  = (40, 40, 40)
 ORANGE = (255, 165, 0)
+DARK_GRAY = (80, 80, 80)
 
 # 물리 상수
 GRAVITY = 0.5
 
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Shield Dodger: Missile Homing Edition")
+pygame.display.set_caption("Shield Dodger: Missile Fuel System")
 clock = pygame.time.Clock()
 font = get_korean_font(36)
 font_big = get_korean_font(72)
@@ -79,9 +80,9 @@ def spawn_enemy(level_cfg):
     x = random.randint(0, WIDTH - ENEMY_W)
     speed = random.randint(level_cfg["min_speed"], level_cfg["max_speed"])
     rect = pygame.Rect(x, -ENEMY_H, ENEMY_W, ENEMY_H)
-    # 데이터 구조: [Rect, dx, dy, is_deflected, angle, rot_speed, homing_delay]
-    # 마지막 인덱스는 유도 시작 전 대기 프레임 수 (30프레임 = 약 0.5초)
-    return [rect, 0, speed, False, 0, 0, 30]
+    # 💡 데이터 구조: [Rect, dx, dy, is_deflected, angle, rot_speed, homing_delay, missile_lifetime]
+    # 마지막 인덱스 180은 유도탄의 수명 (3초 @ 60FPS)
+    return [rect, 0, speed, False, 0, 0, 30, 180]
 
 def draw_hud(score, level_cfg, lives):
     screen.blit(font.render(f"Score: {score}", True, WHITE), (10, 10))
@@ -130,26 +131,22 @@ def main():
         # 2. 방어막 상태 업데이트
         my_shield.update(player.center)
 
-        # 3. 적 생성
+        # 3. 적 생성 스폰
         spawn_timer += 1
         if spawn_timer >= level_cfg["spawn"]:
             spawn_timer = 0
             enemies.append(spawn_enemy(level_cfg))
 
-        # 4. 로직 업데이트
+        # 4. 로직 업데이트 (이동 및 적간 충돌)
         alive_enemies = []
         hit_enemies = set()
 
         # [유도 및 조향(Steering) 로직]
         for i, en_data in enumerate(enemies):
-            # 튕겨나갔다면(is_deflected)
-            if en_data[3]:
+            if en_data[3]: # 튕겨나간 적
                 if en_data[6] > 0:
-                    # 💡 Phase 1: 사출 지연 단계 (뒤로 밀려나며 상승)
-                    en_data[6] -= 1
+                    en_data[6] -= 1 # Launch Delay
                 else:
-                    # 💡 Phase 2: 엔진 점화 및 조향 단계 (부드러운 추적)
-                    # 화면에서 가장 위에 있는 적(Y값이 가장 작은 적)을 타겟팅
                     target = None
                     min_y = HEIGHT
                     for other in enemies:
@@ -159,32 +156,34 @@ def main():
                                 target = other
                     
                     if target:
-                        # 목표 방향으로의 원하는 속도 계산
                         target_pos = pygame.math.Vector2(target[0].center)
                         current_pos = pygame.math.Vector2(en_data[0].center)
-                        desired_vel = (target_pos - current_pos).normalize() * 15 # 미사일 속도
-
-                        # 💡 조향(Steering) 수식: 현재 속도에 목표 속도를 조금씩 더해 궤적을 굽힘
-                        # 0.08 값이 낮을수록 더 크게 회전(부드러운 곡선), 높을수록 날카롭게 추적
+                        desired_vel = (target_pos - current_pos).normalize() * 15
                         en_data[1] += (desired_vel.x - en_data[1]) * 0.08
                         en_data[2] += (desired_vel.y - en_data[2]) * 0.08
 
         # [이동 및 충돌 체크]
         for i, en_data in enumerate(enemies):
             if i in hit_enemies: continue
-            rect, dx, dy, is_deflected, angle, rot_speed, homing_delay = en_data
+            # rect, dx, dy, is_deflected, angle, rot_speed, homing_delay, missile_lifetime
+            rect, dx, dy, is_deflected, angle, rot_speed, homing_delay, missile_lifetime = en_data
             
             rect.x += dx
             rect.y += dy
 
             if is_deflected:
-                # 💡 지연 단계에서만 중력 적용 (점화 후에는 중력을 이기고 날아감)
+                # 💡 수명(연료) 감소 로직
+                en_data[7] -= 1
+                if en_data[7] <= 0:
+                    # 수명이 다하면 회색 연기 파티클 생성 후 소멸
+                    for _ in range(8):
+                        particles.append(Particle(rect.centerx, rect.centery, DARK_GRAY))
+                    continue # 소멸했으므로 alive_enemies에 추가하지 않음
+
                 if en_data[6] > 0:
                     en_data[2] += GRAVITY
+                en_data[4] += rot_speed
                 
-                en_data[4] += rot_speed # 회전은 계속
-                
-                # 적간 충돌 체크
                 for j, other in enumerate(enemies):
                     if i != j and not other[3] and j not in hit_enemies:
                         if rect.colliderect(other[0]):
@@ -197,7 +196,6 @@ def main():
             
             my_shield.check_collision(en_data)
 
-            # 화면 경계 이탈 처리 (유도탄은 좌우로 크게 돌 수 있으므로 여유를 줌)
             if rect.top > HEIGHT + 100 or rect.bottom < -100 or rect.left < -100 or rect.right > WIDTH + 100:
                 if not is_deflected and rect.top > HEIGHT: score += 1
                 continue
@@ -217,7 +215,7 @@ def main():
             invincible -= 1
         else:
             for en_data in enemies:
-                if not en_data[3]: # 튕겨나가지 않은 적만 공격함
+                if not en_data[3]: 
                     if player.colliderect(en_data[0]):
                         lives -= 1
                         invincible = 90
@@ -238,11 +236,13 @@ def main():
             pygame.draw.rect(screen, BLUE, player)
 
         for en_data in enemies:
-            rect, _, _, is_deflected, angle, _, _ = en_data
+            rect, _, _, is_deflected, angle, _, _, missile_lifetime = en_data
             if is_deflected:
-                rotated_img = pygame.transform.rotate(enemy_surface, angle)
-                new_rect = rotated_img.get_rect(center=rect.center)
-                screen.blit(rotated_img, new_rect.topleft)
+                # 💡 수명이 얼마 안 남았을 때 깜빡거리는 효과 (선택 사항)
+                if missile_lifetime > 30 or (missile_lifetime // 5) % 2 == 0:
+                    rotated_img = pygame.transform.rotate(enemy_surface, angle)
+                    new_rect = rotated_img.get_rect(center=rect.center)
+                    screen.blit(rotated_img, new_rect.topleft)
             else:
                 pygame.draw.rect(screen, RED, rect)
 
