@@ -7,7 +7,7 @@ import math
 from shield import Shield
 
 # 8x8 사이즈의 아주 작은 우주선 예시 데이터
-SHEET_B64 = "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"
+SHEET_B64 = "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<truncated>"
 
 # 초기화
 pygame.init()
@@ -89,7 +89,7 @@ def spawn_enemy(level_cfg):
 def draw_hud(score, level_cfg, lives):
     screen.blit(font.render(f"Score: {score}", True, WHITE), (10, 10))
     screen.blit(font.render(f"{level_cfg['label']}", True, YELLOW), (10, 40))
-    screen.blit(font.render(f"Lives: {'♥ ' * lives}", True, RED), (WIDTH - 250, 10))
+    screen.blit(font.render(f"Lives: {'♥ ' * lives}", True, RED), (WIDTH - 200, 10))
 
 def game_over_screen(score):
     screen.fill(GRAY)
@@ -116,7 +116,7 @@ def main():
     # 💡 스프라이트 시트에서 프레임 추출 (총 4개)
     player_frames = []
     # 8x8 크기의 프레임이 가로로 나열되어 있다고 가정
-    for i in range(3):
+    for i in range(4):
         # 정확히 i번째 프레임을 잘라냅니다.
         rect = pygame.Rect(i * 8, 0, 8, 8) 
         frame_img = player_sheet.subsurface(rect)
@@ -126,12 +126,8 @@ def main():
 
     # 애니메이션 변수
     current_frame = 0
-    
-    anim_sequence = [0, 1, 2, 1]
-    current_anim_idx = 0  # 시퀀스 리스트의 몇 번째인지를 가리킴
-    
     last_update = pygame.time.get_ticks()
-    animation_speed = 150 # 속도를 조금 더 빠르게 조절
+    animation_speed = 100 # 속도를 조금 더 빠르게 조절
 
     my_shield = Shield(radius=75)
     enemies = [] 
@@ -173,12 +169,12 @@ def main():
         alive_enemies = []
         hit_enemies = set()
         
-        # 💡 애니메이션 시퀀스 업데이트
+        # 💡 애니메이션 프레임 업데이트
         now = pygame.time.get_ticks()
         if now - last_update > animation_speed:
             last_update = now
-            # 시퀀스 리스트(0, 1, 2, 1) 내에서 다음 순서로 이동
-            current_anim_idx = (current_anim_idx + 1) % len(anim_sequence)
+            # len(player_frames)를 사용하여 4개의 프레임이 모두 순환되도록 함
+            current_frame = (current_frame + 1) % len(player_frames)
 
         # [유도 및 조향 로직]
         for i, en_data in enumerate(enemies):
@@ -262,11 +258,9 @@ def main():
         for p in particles:
             p.draw(screen)
 
-        # 💡 플레이어 그리기
+        # 💡 플레이어 이미지 그리기
         if (invincible // 10) % 2 == 0:
-            # anim_sequence[current_anim_idx]는 0, 1, 2, 1 중 하나가 됩니다.
-            actual_frame_to_draw = player_frames[anim_sequence[current_anim_idx]]
-            screen.blit(actual_frame_to_draw, player)
+            screen.blit(player_frames[current_frame], player)
 
         for en_data in enemies:
             rect, _, _, is_deflected, angle, _, _, missile_lifetime = en_data
