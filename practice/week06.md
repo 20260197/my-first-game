@@ -23,11 +23,11 @@ import pygame
 
 SHEET_B64 = 'BASE64 코드'
 
-💡 Base64 데이터로부터 이미지 로드
+    💡 Base64 데이터로부터 이미지 로드
     sheet_bytes = base64.b64decode(SHEET_B64)
     player_sheet = pygame.image.load(io.BytesIO(sheet_bytes)).convert_alpha()
 
-    # 💡 스프라이트 시트에서 프레임 추출 (8x8 크기, 10열 가정)
+    💡 스프라이트 시트에서 프레임 추출 (8x8 크기, 10열 가정)
     player_frames = []
     for i in range(4):  # 사용할 프레임 개수 (예: 4개)
         # Ship_Pack.png에서 첫 번째 줄 4개를 가져오는 로직
@@ -92,3 +92,49 @@ SHEET_B64 = 'BASE64 코드'
         
         # 화면 업데이트
         pygame.display.flip()
+
+> 키보드 먹통 이슈. 자연스러운 애니메이션이 나오지 않는 이슈.
+>> 질문 - 우주선은 잘 움직이네. 그런데 AD 키로 움직이는게 먹히지가 않아. 그리고 우주선 프레임 4개로 해줬는데 3개밖에 나오지가 않네 수정해줄래?
+>>> 답변 - 우선 AD키 이슈부터 조정.
+
+    # 💡 1. 입력 처리 (AD 키 및 화살표 키 동시 지원)
+    keys = pygame.key.get_pressed()
+    if (keys[pygame.K_LEFT] or keys[pygame.K_a]) and player.left > 0:
+        player.x -= 7
+    if (keys[pygame.K_RIGHT] or keys[pygame.K_d]) and player.right < WIDTH:
+        player.x += 7
+    if (keys[pygame.K_UP] or keys[pygame.K_w]) and player.top > 0:
+        player.y -= 7
+    if (keys[pygame.K_DOWN] or keys[pygame.K_s]) and player.bottom < HEIGHT:
+        player.y += 7
+
+>>> 답변 - 이후 애니메이션 프레임 수정
+
+    💡 1. 실제 이미지가 있는 3개만 추출 (0, 1, 2번 인덱스)
+    player_frames = []
+    for i in range(3): 
+        rect = pygame.Rect(i * 8, 0, 8, 8) 
+        frame_img = player_sheet.subsurface(rect)
+        frame_img = pygame.transform.scale(frame_img, (PLAYER_W, PLAYER_H))
+        player_frames.append(frame_img)
+
+    💡 2. 애니메이션 재생 순서 정의 (1-2-3-2 순서)
+    # 인덱스 기준으로는 [0, 1, 2, 1] 입니다.
+    anim_sequence = [0, 1, 2, 1]
+    current_anim_idx = 0  # 시퀀스 리스트의 몇 번째인지를 가리킴
+    
+    last_update = pygame.time.get_ticks()
+    animation_speed = 120
+
+    💡 애니메이션 시퀀스 업데이트
+        now = pygame.time.get_ticks()
+        if now - last_update > animation_speed:
+            last_update = now
+            # 시퀀스 리스트(0, 1, 2, 1) 내에서 다음 순서로 이동
+            current_anim_idx = (current_anim_idx + 1) % len(anim_sequence)
+
+    💡 플레이어 그리기
+        if (invincible // 10) % 2 == 0:
+            # anim_sequence[current_anim_idx]는 0, 1, 2, 1 중 하나가 됩니다.
+            actual_frame_to_draw = player_frames[anim_sequence[current_anim_idx]]
+            screen.blit(actual_frame_to_draw, player)
