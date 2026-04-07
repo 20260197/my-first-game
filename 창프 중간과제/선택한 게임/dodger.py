@@ -82,7 +82,7 @@ def spawn_enemy(level_cfg):
     rect = pygame.Rect(x, -ENEMY_H, ENEMY_W, ENEMY_H)
     # 💡 데이터 구조: [Rect, dx, dy, is_deflected, angle, rot_speed, homing_delay, missile_lifetime]
     # 마지막 인덱스 180은 유도탄의 수명 (3초 @ 60FPS)
-    return [rect, 0, speed, False, 0, 0, 30, 180]
+    return [rect, 0, speed, False, 0, 0, 30, 90]
 
 def draw_hud(score, level_cfg, lives):
     screen.blit(font.render(f"Score: {score}", True, WHITE), (10, 10))
