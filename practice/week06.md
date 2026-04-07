@@ -13,15 +13,15 @@
 >> 질문 - 스프라이트 시트 도구를 이용해서, 특정 우주선을 하나 가지고 코드로 변환시킨 코드야. 이중에서 필요한 코드를 골라내서 복사가 가능하게 해주고, 메인 게임코드 어디부분에 넣어야 할지 알려줘.
 >>> 답변 - 
 
-import base64
-import io
-import pygame
+    import base64
+    import io
+    import pygame
 
-(기존 import들...)
+    (기존 import들...)
 
-💡 제공해주신 Base64 데이터를 그대로 복사해서 넣으세요.
+    💡 제공해주신 Base64 데이터를 그대로 복사해서 넣으세요.
 
-SHEET_B64 = 'BASE64 코드'
+    SHEET_B64 = 'BASE64 코드'
 
     💡 Base64 데이터로부터 이미지 로드
     sheet_bytes = base64.b64decode(SHEET_B64)
