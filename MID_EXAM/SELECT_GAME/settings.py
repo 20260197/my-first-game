@@ -1,7 +1,7 @@
 import pygame
 
 # 화면 설정
-WIDTH, HEIGHT = 800, 600
+WIDTH, HEIGHT = 1600, 900
 FPS = 60
 GRAVITY = 0.35
 
@@ -20,9 +20,11 @@ BOOSTER_COLOR = (255, 160, 50)
 SMOKE_COLOR   = (140, 140, 140)
 
 # settings.py
+# settings.py 내 LEVELS 수정
 LEVELS = [
-    {"spawn": 40, "label": "Lv.1", "mode": "normal", "min_speed": 3, "max_speed": 5},
-    {"spawn": 25, "label": "Lv.2", "mode": "normal", "min_speed": 5, "max_speed": 8},
-    {"spawn": 50, "label": "Lv.3", "mode": "laser"}, # 레이저 모드 시작
-    {"spawn": 35, "label": "Lv.4", "mode": "laser"}, # 더 빈번한 레이저
+    {"spawn": 40, "label": "Lv.1", "mode": "normal", "min_speed": 5, "max_speed": 10},
+    {"spawn": 25, "label": "Lv.2", "mode": "normal", "min_speed": 10, "max_speed": 15},
+    {"spawn": 30, "label": "Lv.3", "mode": "laser"}, 
+    {"spawn": 20, "label": "Lv.4", "mode": "laser"}, 
+    {"spawn": 35, "label": "Lv.5", "mode": "laser_hell"}, # 💡 페이즈 5 추가 (생성 주기는 살짝 늦춤)
 ]
