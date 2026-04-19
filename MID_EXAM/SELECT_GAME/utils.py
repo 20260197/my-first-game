@@ -11,7 +11,13 @@ def get_korean_font(size):
     return pygame.font.SysFont(None, size)
 
 def spawn_enemy(level_cfg):
+    min_s = level_cfg.get("min_speed", 3) 
+    max_s = level_cfg.get("max_speed", 7)
+    
+    speed = random.randint(min_s, max_s)
+    
     # 해상도가 커졌으므로 적 생성 위치(WIDTH)는 settings.py의 값을 그대로 참조합니다.
+
     x = random.randint(0, WIDTH - ENEMY_W)
     speed = random.randint(level_cfg["min_speed"], level_cfg["max_speed"])
     rect = pygame.Rect(x, -ENEMY_H, ENEMY_W, ENEMY_H)

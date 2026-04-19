@@ -21,11 +21,11 @@ SMOKE_COLOR   = (140, 140, 140)
 CYAN = (0, 255, 255)
 
 # settings.py
-# settings.py 내 LEVELS 수정
+# settings.py 예시
 LEVELS = [
-    {"spawn": 20, "label": "Lv.1", "mode": "normal", "min_speed": 5, "max_speed": 15},
-    {"spawn": 10, "label": "Lv.2", "mode": "normal", "min_speed": 15, "max_speed": 30},
-    {"spawn": 150, "label": "Lv.3", "mode": "laser"}, 
-    {"spawn": 120, "label": "Lv.4", "mode": "laser"}, 
-    {"spawn": 70, "label": "Lv.5", "mode": "laser_hell"}, # 💡 페이즈 5 추가 (생성 주기는 살짝 늦춤)
+    {"label": "Phase 1", "mode": "normal", "spawn": 60, "min_speed": 3, "max_speed": 7},
+    {"label": "Phase 2", "mode": "normal", "spawn": 40, "min_speed": 5, "max_speed": 12},
+    {"label": "Phase 3: Laser", "mode": "laser", "spawn": 60, "min_speed": 3, "max_speed": 7},
+    {"label": "Phase 4: Hybrid", "mode": "laser_hell", "spawn": 80, "min_speed": 3, "max_speed": 7},
+    {"label": "Phase 5: HELL", "mode": "laser_hell", "spawn": 50, "min_speed": 3, "max_speed": 7},
 ]

@@ -48,7 +48,6 @@ class Shield:
             self.remaining_uses -= 1
             self.timer = self.duration_max
 
-    # game_objects.py 내 Shield 클래스의 check_collision 메서드
     # game_objects.py 내 Shield 클래스의 check_collision 메서드 수정
     def check_collision(self, enemy_data):
         if not self.active: return False
