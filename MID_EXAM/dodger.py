@@ -68,6 +68,13 @@ def main():
         4: os.path.join(BASE_PATH, "Assets", "Audio", "Fifth_Phase.mp3")
     }
 
+    # --- 배경 레이어 설정 ---
+    bg_layers = [
+        BackgroundLayer(80, 0.5, (60, 60, 80), 1),   # 가장 먼 별 (작고 느림)
+        BackgroundLayer(40, 1.5, (120, 120, 140), 2), # 중간 별
+        BackgroundLayer(15, 3.0, (200, 200, 220), 3)  # 가장 가까운 별 (크고 빠름)
+    ]
+
     # --- 효과음 로드 섹션 ---
     # 레이저 발사 효과음 경로 (Assets/Audio/ 폴더 내에 파일이 있어야 함)
     laser_sfx_path = os.path.join(BASE_PATH, "Assets", "Audio", "laser_fire.mp3")
@@ -423,9 +430,15 @@ def main():
 
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # 5. 그리기 (Drawing)
-        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━    
+        
         # 1. 도화지 초기화
         display_surf.fill(BLACK)
+
+        # 💡 [추가] 배경 레이어 업데이트 및 그리기
+        for layer in bg_layers:
+            layer.update()
+            layer.draw(display_surf)
 
         # 2. HUD 및 개발자 모드 표시
         draw_hud(display_surf, font, score, LEVELS[level_idx], lives)

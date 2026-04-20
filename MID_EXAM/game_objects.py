@@ -129,3 +129,23 @@ class Particle:
             s.set_alpha(alpha)
             s.fill(self.color)
             surf.blit(s, (self.x, self.y))
+
+class BackgroundLayer:
+    def __init__(self, count, speed, color, size):
+        # 화면 내 무작위 위치에 별 생성
+        self.stars = [[random.randint(0, WIDTH), random.randint(0, HEIGHT)] for _ in range(count)]
+        self.speed = speed
+        self.color = color
+        self.size = size
+
+    def update(self):
+        for star in self.stars:
+            star[1] += self.speed  # 아래로 흐르게 함
+            # 화면 아래로 나가면 다시 위로 보냄
+            if star[1] > HEIGHT:
+                star[1] = 0
+                star[0] = random.randint(0, WIDTH)
+
+    def draw(self, surface):
+        for star in self.stars:
+            pygame.draw.circle(surface, self.color, star, self.size)
