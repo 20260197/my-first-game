@@ -5,8 +5,8 @@ import random
 import sys
 import math
 from settings import *
-from game_objects import Shield, Particle
-from utils import get_korean_font, spawn_enemy, draw_hud, game_over_screen
+from game_objects import *
+from utils import *
 from base import *
 
 def main():
@@ -14,7 +14,7 @@ def main():
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("Shield Dodger: Tactical Laser (Hard Mode)")
     clock = pygame.time.Clock()
-    
+
     font = get_korean_font(36)
     font_big = get_korean_font(72)
 
@@ -26,7 +26,6 @@ def main():
     sheet_bytes = base64.b64decode(SHEET_B64)
     player_sheet = pygame.image.load(io.BytesIO(sheet_bytes)).convert_alpha()
     player_frames = [pygame.transform.scale(player_sheet.subsurface(pygame.Rect(i*8,0,8,8)), (PLAYER_W, PLAYER_H)) for i in range(3)]
-    
 
     # 2. 적 미사일 스프라이트 시트 로드 및 슬라이싱
     enemy_sheet_bytes = base64.b64decode(ENEMY_MISSILE_B64)
@@ -34,6 +33,9 @@ def main():
     
     frame_width = 85  
     frame_height = 100 
+
+    # (이미지 로드 섹션 근처)
+    display_surf = pygame.Surface((WIDTH, HEIGHT)) # 실제 게임이 그려질 도화지
     
     # 시트의 전체 너비를 프레임 너비로 나누어 프레임 개수 자동 계산
     num_frames = enemy_sheet_img.get_width() // frame_width
@@ -51,6 +53,34 @@ def main():
     player_rect = pygame.Rect(WIDTH // 2 - PLAYER_W // 2, HEIGHT - 100, PLAYER_W, PLAYER_H)
     screen_rect = pygame.Rect(0, 0, WIDTH, HEIGHT)
 
+    import os
+
+    # 1. dodger.py 파일의 현재 위치를 구합니다.
+    BASE_PATH = os.path.dirname(__file__)
+
+    # 2. 하위 폴더 이름이 'assets'라면 중간에 넣어줍니다.
+    # 만약 폴더 이름이 다르다면 "assets" 부분을 실제 이름으로 바꾸세요.
+    bgm_dict = {
+        0: os.path.join(BASE_PATH, "Assets", "Audio", "First_Second_Phase.mp3"),
+        1: os.path.join(BASE_PATH, "Assets", "Audio", "First_Second_Phase.mp3"),
+        2: os.path.join(BASE_PATH, "Assets", "Audio", "Third_Fourth_Phase.mp3"),
+        3: os.path.join(BASE_PATH, "Assets", "Audio", "Third_Fourth_Phase.mp3"),
+        4: os.path.join(BASE_PATH, "Assets", "Audio", "Fifth_Phase.mp3")
+    }
+
+    # --- 효과음 로드 섹션 ---
+    # 레이저 발사 효과음 경로 (Assets/Audio/ 폴더 내에 파일이 있어야 함)
+    laser_sfx_path = os.path.join(BASE_PATH, "Assets", "Audio", "laser_fire.mp3")
+    
+    try:
+        laser_fire_sfx = pygame.mixer.Sound(laser_sfx_path)
+        laser_fire_sfx.set_volume(0.4)  # 효과음 볼륨 조절 (0.0 ~ 1.0)
+    except pygame.error:
+        print("레이저 효과음 파일을 찾을 수 없습니다.")
+        laser_fire_sfx = None
+    
+    current_bgm = None # 현재 재생 중인 음악 파일명 저장
+
     SCALE_FACTOR = 1.5  # 1.5배 키우기
 
     # 로드 부분
@@ -65,10 +95,21 @@ def main():
     warnings = []
     
     score, lives, spawn_timer, invincible = 0, 3, 0, 0
-
-    thresholds = [0, 500, 1000, 1500, 4500]
+    large_enemy_spawn_timer = 0
+    
     dev_mode = False
     god_mode = False
+
+    show_title_screen(screen, font, font_big)
+    waiting_for_release = True
+    while waiting_for_release:
+        pygame.event.pump() # 내부 이벤트 상태 업데이트
+        keys = pygame.key.get_pressed()
+        if not keys[pygame.K_SPACE]: # 스페이스 바에서 손을 떼면
+            waiting_for_release = False
+    
+    # --- 상태 변수 추가 ---
+    show_help = False  # 도움말 화면 표시 여부
 
     while True:
         clock.tick(FPS)
@@ -80,6 +121,22 @@ def main():
         level_cfg = LEVELS[level_idx]
         mode = level_cfg.get("mode", "normal")
 
+        # (기존 레벨 계산 코드 아래에 추가)
+        # 현재 레벨에 맞는 음악 파일 가져오기
+        target_bgm = bgm_dict.get(level_idx)
+
+        # 현재 재생 중인 곡과 틀어야 할 곡이 다를 때만 실행
+        if current_bgm != target_bgm:
+            current_bgm = target_bgm
+            if target_bgm:
+                try:
+                    pygame.mixer.music.load(target_bgm)
+                    pygame.mixer.music.set_volume(0.5) # 볼륨 조절 (0.0 ~ 1.0)
+                    pygame.mixer.music.play(-1)        # -1은 무한 반복
+                except pygame.error as e:
+                    # 파일이 없거나 형식이 틀려도 게임이 멈추지 않게 처리
+                    print(f"음악 로드 실패: {target_bgm} / 에러: {e}")
+
         for e in pygame.event.get():
             if e.type == pygame.QUIT: pygame.quit(); sys.exit()
             if e.type == pygame.KEYDOWN:
@@ -88,10 +145,12 @@ def main():
                     god_mode = dev_mode
                 if dev_mode:
                     if e.key == pygame.K_1: score = 0
-                    elif e.key == pygame.K_2: score = 500
-                    elif e.key == pygame.K_3: score = 1000
-                    elif e.key == pygame.K_4: score = 1500
-                    elif e.key == pygame.K_5: score = 4500 
+                    elif e.key == pygame.K_2: score = 200
+                    elif e.key == pygame.K_3: score = 400
+                    elif e.key == pygame.K_4: score = 2000
+                    elif e.key == pygame.K_5: score = 6000 
+                if e.key == pygame.K_h:
+                    show_help = not show_help
 
         # 1. 플레이어 조작
         keys = pygame.key.get_pressed()
@@ -118,20 +177,23 @@ def main():
         my_shield.update(player_rect.center)
 
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        # 2. 생성 로직 (3: 레이저1 / 4: 레이저1+유성 / 5: 레이저2+유성)
+        # 2. 생성 및 소환 로직 (Update)
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        should_wait = False
-        # 레이저가 화면에 하나라도 있으면 타이머 중지 (발사 간격 유지)
-        if mode in ["laser", "laser_hell"] and len(lasers) > 0:
-            should_wait = True
+        
+        # (1) 고속 유성 전조 타이머 관리 및 소환
+        for warn in warnings[:]:
+            warn["timer"] -= 1
+            if warn["timer"] <= 0:
+                enemies.append(warn["data"]) # 실제 적 리스트로 추가
+                warnings.remove(warn)
 
+        # (2) 레이저 생성용 타이머 (기존 spawn_timer)
+        should_wait = (mode in ["laser", "laser_hell"] and len(lasers) > 0)
         if not should_wait:
             spawn_timer += 1
 
         if spawn_timer >= level_cfg["spawn"]:
             spawn_timer = 0
-            
-            # (1) 1, 2페이즈: 일반 및 고속 미사일
             if mode == "normal":
                 new_enemy = spawn_enemy(level_cfg)
                 new_enemy.append(False) # 거대 유성 아님
@@ -140,61 +202,41 @@ def main():
                 else:
                     enemies.append(new_enemy)
             
-            # (2) 3페이즈: 레이저 1개만 발사
             elif mode == "laser":
                 px, py = player_rect.center
-                offset = 500
                 side = random.randint(0, 3)
-                if side == 0: origin = [max(0, min(WIDTH, px + random.randint(-offset, offset))), -50]
-                elif side == 1: origin = [max(0, min(WIDTH, px + random.randint(-offset, offset))), HEIGHT + 50]
-                elif side == 2: origin = [-50, max(0, min(HEIGHT, py + random.randint(-offset, offset)))]
-                else: origin = [WIDTH + 50, max(0, min(HEIGHT, py + random.randint(-offset, offset)))]
-                
-                lasers.append({
-                    "origin": origin, "target": [px, py], 
-                    "timer": 45, "timer_start": 45, "state": 1
-                })
+                if side == 0: origin = [random.randint(0, WIDTH), -50]
+                elif side == 1: origin = [random.randint(0, WIDTH), HEIGHT + 50]
+                elif side == 2: origin = [-50, random.randint(0, HEIGHT)]
+                else: origin = [WIDTH + 50, random.randint(0, HEIGHT)]
+                lasers.append({"origin": origin, "target": [px, py], "timer": 45, "timer_start": 45, "state": 1})
 
-            # (3) 4, 5페이즈: 레이저 헬 (하이브리드)
             elif mode == "laser_hell":
+                # 레이저만 생성 (5페이즈는 2개, 4페이즈는 1개)
                 laser_count = 2 if level_idx == 4 else 1
                 for _ in range(laser_count):
                     px, py = player_rect.center
-                    offset = 500
-                    side = random.randint(0, 3)
-                
-                # 1. 레이저 생성
-                for _ in range(laser_count):
-                    px, py = player_rect.center
-                    offset = 500
-                    side = random.randint(0, 3)
-                    if side == 0: origin = [max(0, min(WIDTH, px + random.randint(-offset, offset))), -50]
-                    elif side == 1: origin = [max(0, min(WIDTH, px + random.randint(-offset, offset))), HEIGHT + 50]
-                    elif side == 2: origin = [-50, max(0, min(HEIGHT, py + random.randint(-offset, offset)))]
-                    else: origin = [WIDTH + 50, max(0, min(HEIGHT, py + random.randint(-offset, offset)))]
-                    
-                    lasers.append({
-                        "origin": origin, "target": [px, py], 
-                        "timer": 40, "timer_start": 40, "state": 1
-                    })
-                
-                # ☄️ 거대 유성 생성 및 설정
-                large_enemy = spawn_enemy(level_cfg)
-                
-                # 1. 히트박스 크기를 이미지 배율(4배)에 맞춰 수정
-                large_enemy[0].width = ENEMY_W * 4
-                large_enemy[0].height = ENEMY_H * 4
-                
-                # 2. 비스듬하게 떨어지도록 dx 설정 (-2 ~ 2 사이의 랜덤값)
-                large_enemy[1] = random.uniform(-1.5, 1.5) 
-                
-                # 3. 낙하 속도는 여전히 느리게 (2 ~ 4)
-                large_enemy[2] = random.uniform(2, 4)
-                
-                large_enemy.append(True) # 거대 유성 플래그
-                enemies.append(large_enemy)
+                    origin = [random.randint(0, WIDTH), -50 if random.random() > 0.5 else HEIGHT + 50]
+                    lasers.append({"origin": origin, "target": [px, py], "timer": 40, "timer_start": 40, "state": 1})
 
+        # (3) 거대 유성 전용 생성 로직 (독립적 타이머)
+        if mode == "laser_hell":
+            large_enemy_spawn_timer += 1
+            # 💡 주기를 60~80 정도로 잡으면 아주 많이 쏟아집니다.
+            if large_enemy_spawn_timer >= 80: 
+                large_enemy_spawn_timer = 0
+                for _ in range(2): # 한 번에 2개씩 생성
+                    large_enemy = spawn_enemy(level_cfg)
+                    large_enemy[0].width, large_enemy[0].height = ENEMY_W * 4, ENEMY_H * 4
+                    large_enemy[1] = random.uniform(-1.5, 1.5) 
+                    large_enemy[2] = random.uniform(4, 8)
+                    large_enemy.append(True) 
+                    enemies.append(large_enemy)
+
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # 3. 레이저 로직 (그레이징 및 파티클)
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
         for laser in lasers[:]:
             start = laser["origin"]
             if laser["state"] == 1:
@@ -202,6 +244,11 @@ def main():
                 if laser["timer"] <= 0:
                     laser["state"] = 2
                     laser["timer"] = 60 
+
+                    if laser_fire_sfx:
+                        laser_fire_sfx.play()
+                    
+                    
             elif laser["state"] == 2:
                 laser["timer"] -= 1
                 dx, dy = laser["target"][0] - start[0], laser["target"][1] - start[1]
@@ -210,7 +257,7 @@ def main():
                     full_end = [start[0] + (dx/dist) * 3000, start[1] + (dy/dist) * 3000]
                     graze_rect = player_rect.inflate(40, 40)
                     if graze_rect.clipline(start, full_end):
-                        score += 1 
+                        score += 5
 
                     clipped = screen_rect.clipline(start, full_end)
                     if clipped:
@@ -325,7 +372,7 @@ def main():
                             p = Particle(px, py, fire_color, size=p_size, lifetime=p_lifetime)
                             
                             # 5. 퍼지는 정도: 유성이 크므로 옆으로도 더 많이 퍼지게 설정
-                            p.dx = random.uniform(-2, 2)
+                            p.dx = random.uniform(-4, 4)
                             p.dy = -random.uniform(3, 7) # 더 빠르게 위로 솟구침
                             particles.append(p)
                 else:
@@ -367,7 +414,7 @@ def main():
             # 화면 밖 처리
             r = en_data[0]
             if r.top > HEIGHT + 150 or r.bottom < -150 or r.left < -150 or r.right > WIDTH + 150:
-                if not en_data[3] and r.top > HEIGHT: score += 1
+                if not en_data[3] and r.top > HEIGHT: score += 5
                 continue
             alive_enemies.append(en_data)
 
@@ -375,103 +422,131 @@ def main():
             enemies = alive_enemies
 
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        # 5. 그리기 섹션
+        # 5. 그리기 (Drawing)
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        screen.fill((20, 20, 40))
+        # 1. 도화지 초기화
+        display_surf.fill(BLACK)
 
-        # 💡 [추가] 전조(Warning) 업데이트 및 궤적 그리기
-        for w in warnings[:]:
-            w["timer"] -= 1 # 타이머 감소
-            
-            # (1) 전조 궤적 그리기 (타이머가 15프레임 이상 남았을 때만)
-            if w["timer"] > 15:
-                # 얇은 2px 선, 깜빡이는 투명도 적용
-                alpha = 100 if (pygame.time.get_ticks() // 100) % 2 == 0 else 40
-                line_surf = pygame.Surface((2, HEIGHT), pygame.SRCALPHA)
-                line_surf.fill((255, 50, 50, alpha))
-                screen.blit(line_surf, (w["x"] - 1, 0))
-            
-            # (2) 시간이 다 되면 실제 적 리스트로 이동 (생성)
-            if w["timer"] <= 0:
-                enemies.append(w["data"])
-                warnings.remove(w)
-        
-        my_shield.draw(screen)
-        
-        for p in particles: p.draw(screen)
+        # 2. HUD 및 개발자 모드 표시
+        draw_hud(display_surf, font, score, LEVELS[level_idx], lives)
+        if dev_mode:
+            dev_text = font.render("DEV MODE (GOD): ON", True, (0, 255, 0))
+            display_surf.blit(dev_text, (WIDTH // 2 - dev_text.get_width() // 2, 10))
 
-        # 레이저 그리기
+        # 3. 고속 유성 전조 표시 (출력만 담당)
+        for warn in warnings:
+            # 붉은색 세로 궤적
+            warn_rect_surf = pygame.Surface((10, HEIGHT), pygame.SRCALPHA)
+            alpha = 100 if (pygame.time.get_ticks() // 150) % 2 == 0 else 30
+            pygame.draw.rect(warn_rect_surf, (255, 0, 0, alpha), (0, 0, 10, HEIGHT))
+            display_surf.blit(warn_rect_surf, (warn["x"] - 5, 0))
+            
+            # 상단 경고 아이콘
+            warn_icon = font.render("!", True, RED)
+            display_surf.blit(warn_icon, (warn["x"] - warn_icon.get_width()//2, 5))
+
+        # 4. 파티클 및 쉴드 그리기
+        for p in particles:
+            p.draw(display_surf)
+        my_shield.draw(display_surf)
+
+        # 5. 플레이어 프레임 (Left=0 / Idle=1 / Right=2)
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+            p_idx = 0  # 왼쪽 프레임
+        elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+            p_idx = 2  # 오른쪽 프레임
+        else:
+            p_idx = 1  # 중앙(Idle) 프레임
+
+        rot_player = pygame.transform.rotate(player_frames[p_idx], current_angle)
+        display_surf.blit(rot_player, rot_player.get_rect(center=player_rect.center))
+
+        # 6. 레이저 그리기 (화면 끝까지 연장 및 각도 동기화)
         for laser in lasers:
-            start = laser["origin"]
-            dx, dy = laser["target"][0] - start[0], laser["target"][1] - start[1]
+            start, target = laser["origin"], laser["target"]
+            dx, dy = target[0] - start[0], target[1] - start[1]
             dist = math.hypot(dx, dy)
             if dist == 0: continue
+            
+            # 실제 레이저가 발사될 최종 끝점 (3000px)
             full_end = [start[0] + (dx/dist) * 3000, start[1] + (dy/dist) * 3000]
+
             if laser["state"] == 1:
+                # [전조] 점점 차오르는 보라색 가이드 빔
+                laser_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
                 progress = 1.0 - (laser["timer"] / laser["timer_start"])
-                pygame.draw.line(screen, (50, 0, 50), start, full_end, 2)
-                current_end = [start[0] + (full_end[0] - start[0]) * progress, start[1] + (full_end[1] - start[1]) * progress]
-                flash_color = (255, 0, 255) if (pygame.time.get_ticks() // 80) % 2 == 0 else (128, 0, 128)
-                pygame.draw.line(screen, flash_color, start, current_end, 22)
-                pygame.draw.line(screen, (200, 200, 255), start, current_end, 4)
+                
+                # 💡 전조 끝점도 3000px 기준으로 채워야 각도/거리에 상관없이 정확히 발사 시점에 끝에 도달합니다.
+                current_end = [
+                    start[0] + (dx/dist) * 3000 * progress, 
+                    start[1] + (dy/dist) * 3000 * progress
+                ]
+                
+                warn_alpha = 120
+                f_color = (255, 0, 255, warn_alpha) if (pygame.time.get_ticks() // 80) % 2 == 0 else (128, 0, 128, warn_alpha)
+                pygame.draw.line(laser_surf, f_color, start, current_end, 15) # 두께 약간 조절
+                pygame.draw.line(laser_surf, (200, 200, 255, warn_alpha), start, current_end, 3)
+                display_surf.blit(laser_surf, (0, 0))
+
             elif laser["state"] == 2:
+                # [발사] 붉은색 메인 광선
                 for color, width in [((150, 0, 0), 26), ((255, 50, 50), 18), ((255, 150, 50), 10), ((255, 255, 255), 4)]:
-                    pygame.draw.line(screen, color, start, full_end, width)
+                    pygame.draw.line(display_surf, color, start, full_end, width)
 
-        # 플레이어 그리기
-        if (invincible // 10) % 2 == 0:
-            img = player_frames[current_frame_idx]
-            rot_img = pygame.transform.rotate(img, int(current_angle / 5) * 5)
-            screen.blit(rot_img, rot_img.get_rect(center=player_rect.center))
-
-        # 💡 적 미사일 그리기 섹션
+        # 7. 적(유성/거대유성) 그리기
         for en_data in enemies:
             rect, _, _, is_def, angle = en_data[0:5]
+            # 인덱스 범위를 고려하여 마지막 값으로 대형 여부 판단
             is_large = en_data[-1] if len(en_data) > 8 else False
-            anim_base = pygame.time.get_ticks() // 100
+            
+            curr_frames = large_enemy_frames if is_large else enemy_frames
+            idx = (pygame.time.get_ticks() // 100) % len(curr_frames)
+            img = curr_frames[idx]
 
-            # 프레임 선택
-            if is_large and large_enemy_frames:
-                idx = anim_base % len(large_enemy_frames)
-                curr_frame = large_enemy_frames[idx]
-            else:
-                idx = anim_base % len(enemy_frames)
-                curr_frame = enemy_frames[idx]
-
-            # 💡 위치 수정 포인트: 
-            # 단순히 rect 위치에 그리는 대신, 이미지의 중심을 히트박스(rect)의 중심에 맞춤
             if is_def:
-                rot_en = pygame.transform.rotate(curr_frame, angle)
-                screen.blit(rot_en, rot_en.get_rect(center=rect.center))
+                rot_en = pygame.transform.rotate(img, angle)
+                display_surf.blit(rot_en, rot_en.get_rect(center=rect.center))
             else:
-                # 일반 낙하 상태에서도 중심을 맞춰야 이미지가 튀지 않습니다.
-                screen.blit(curr_frame, curr_frame.get_rect(center=rect.center))
+                display_surf.blit(img, img.get_rect(center=rect.center))
 
-            if is_large:
-                # 💡 리스트가 비어있지 않은지 확인 후, 자신의 길이에 맞춰 인덱스 계산
-                if large_enemy_frames:
-                    idx = anim_base % len(large_enemy_frames)
-                    curr_frame = large_enemy_frames[idx]
-                else:
-                    # 혹시라도 리스트가 비어있다면 일반 프레임이라도 사용 (에러 방지)
-                    idx = anim_base % len(enemy_frames)
-                    curr_frame = enemy_frames[idx]
-            else:
-                idx = anim_base % len(enemy_frames)
-                curr_frame = enemy_frames[idx]
+        # 8. 스크린 쉐이크 및 최종 화면 출력
+        shake_offset = [0, 0]
+        is_firing = any(l["state"] == 2 for l in lasers)
+        # 거대 유성 존재 여부 확인
+        is_boss = any(en[-1] for en in enemies if len(en) > 8)
 
-            # 그리기 로직 (동일)
-            if is_def:
-                rot_en = pygame.transform.rotate(curr_frame, angle)
-                screen.blit(rot_en, rot_en.get_rect(center=rect.center).topleft)
-            else:
-                screen.blit(curr_frame, rect)
+        if is_firing or is_boss:
+            intensity = 4 if is_firing else 2
+            shake_offset = [random.randint(-intensity, intensity), random.randint(-intensity, intensity)]
+            
+        if show_help:
+            # 반투명 검은색 배경 상자
+            help_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+            pygame.draw.rect(help_surf, (0, 0, 0, 180), (50, 50, WIDTH-100, HEIGHT-100))
+            display_surf.blit(help_surf, (0, 0))
 
-        if dev_mode:
-            dev_surf = font.render(f"DEV | GOD: {god_mode}", True, (0, 255, 0))
-            screen.blit(dev_surf, (WIDTH // 2 - dev_surf.get_width() // 2, 10))
+            # 도움말 텍스트 내용
+            help_title = font_big.render("HOW TO PLAY", True, (255, 255, 0))
+            controls = [
+                "이동: 방향키 (↑↓←→) 또는 WASD",
+                "쉴드: 플레이어 주변에 자동 활성화 (유성 튕겨내기)",
+                "",
+                "★ 보너스 점수 ★",
+                "레이저가 발사될 때 궤적 근처에 있으면",
+                "근접 보너스(Grazing) 점수를 추가로 획득합니다!",
+                "",
+                "[ H 키를 눌러 게임으로 돌아가기 ]"
+            ]
 
-        draw_hud(screen, font, score, level_cfg, lives)
+            # 텍스트 출력 위치 계산
+            display_surf.blit(help_title, (WIDTH//2 - help_title.get_width()//2, 100))
+            for i, line in enumerate(controls):
+                text_surf = font.render(line, True, (255, 255, 255))
+                display_surf.blit(text_surf, (WIDTH//2 - text_surf.get_width()//2, 220 + i * 45))
+        
+        screen.fill(BLACK)
+        screen.blit(display_surf, (shake_offset[0], shake_offset[1]))
         pygame.display.flip()
 
 if __name__ == "__main__":
