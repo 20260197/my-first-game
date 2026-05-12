@@ -1,7 +1,19 @@
 import pygame
+import os
 import sys
 import random
 from settings import *
+
+# utils.py 를 이렇게 수정하세요
+def resource_path(relative_path):
+    if hasattr(sys, '_MEIPASS'):
+        # PyInstaller로 빌드된 경우
+        base_path = sys._MEIPASS
+    else:
+        # 로컬 실행 시: 현재 파일(utils.py)의 부모 디렉토리를 기준으로 설정
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        
+    return os.path.join(base_path, relative_path)
 
 def get_korean_font(size):
     candidates = ["malgungothic", "applegothic", "nanumgothic", "notosanscjk"]
@@ -15,11 +27,8 @@ def spawn_enemy(level_cfg):
     max_s = level_cfg.get("max_speed", 7)
     
     speed = random.randint(min_s, max_s)
-    
-    # 해상도가 커졌으므로 적 생성 위치(WIDTH)는 settings.py의 값을 그대로 참조합니다.
-
     x = random.randint(0, WIDTH - ENEMY_W)
-    speed = random.randint(level_cfg["min_speed"], level_cfg["max_speed"])
+    
     rect = pygame.Rect(x, -ENEMY_H, ENEMY_W, ENEMY_H)
     return [rect, 0, speed, False, 0, 0, 30, 150]
 

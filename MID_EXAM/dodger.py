@@ -2,12 +2,15 @@ import base64
 import io
 import pygame
 import random
+import os
 import sys
 import math
 from settings import *
 from game_objects import *
 from utils import *
 from base import *
+
+print(resource_path("Assets/Audio/laser_fire.mp3"))
 
 def main():
     pygame.init()
@@ -53,19 +56,17 @@ def main():
     player_rect = pygame.Rect(WIDTH // 2 - PLAYER_W // 2, HEIGHT - 100, PLAYER_W, PLAYER_H)
     screen_rect = pygame.Rect(0, 0, WIDTH, HEIGHT)
 
-    import os
-
     # 1. dodger.py 파일의 현재 위치를 구합니다.
-    BASE_PATH = os.path.dirname(__file__)
+    # BASE_PATH = os.path.dirname(__file__)
 
     # 2. 하위 폴더 이름이 'assets'라면 중간에 넣어줍니다.
-    # 만약 폴더 이름이 다르다면 "assets" 부분을 실제 이름으로 바꾸세요.
+    # bgm_dict 수정
     bgm_dict = {
-        0: os.path.join(BASE_PATH, "Assets", "Audio", "First_Second_Phase.mp3"),
-        1: os.path.join(BASE_PATH, "Assets", "Audio", "First_Second_Phase.mp3"),
-        2: os.path.join(BASE_PATH, "Assets", "Audio", "Third_Fourth_Phase.mp3"),
-        3: os.path.join(BASE_PATH, "Assets", "Audio", "Third_Fourth_Phase.mp3"),
-        4: os.path.join(BASE_PATH, "Assets", "Audio", "Fifth_Phase.mp3")
+        0: resource_path(os.path.join("Assets", "Audio", "First_Second_Phase.mp3")),
+        1: resource_path(os.path.join("Assets", "Audio", "First_Second_Phase.mp3")),
+        2: resource_path(os.path.join("Assets", "Audio", "Third_Fourth_Phase.mp3")),
+        3: resource_path(os.path.join("Assets", "Audio", "Third_Fourth_Phase.mp3")),
+        4: resource_path(os.path.join("Assets", "Audio", "Fifth_Phase.mp3"))
     }
 
     # --- 배경 레이어 설정 ---
@@ -77,7 +78,7 @@ def main():
 
     # --- 효과음 로드 섹션 ---
     # 레이저 발사 효과음 경로 (Assets/Audio/ 폴더 내에 파일이 있어야 함)
-    laser_sfx_path = os.path.join(BASE_PATH, "Assets", "Audio", "laser_fire.mp3")
+    laser_sfx_path = resource_path(os.path.join("Assets", "Audio", "laser_fire.mp3"))
     
     try:
         laser_fire_sfx = pygame.mixer.Sound(laser_sfx_path)
