@@ -17,23 +17,23 @@ DARK_GREY = (50, 50, 50)
 
 # 밸런스 데이터: 게임 기본 스탯
 START_LIFE = 3
-START_GOLD = 150  
+START_GOLD = 300  # 복합 시스템 테스트를 위해 초기 자금 상향
 
 # 밸런스 데이터: 적 (Enemy)
-ENEMY_SPEED = 2
+ENEMY_SPEED = 2.5
 ENEMY_HEALTH = 100
 ENEMY_RADIUS = 15
 ENEMY_GOLD_REWARD = 40  
-SPAWN_DELAY = 60  # 전장이 넓어졌으므로 스폰 간격을 90 -> 60으로 단축
+SPAWN_DELAY = 60  
 
 # 밸런스 데이터: 투사체 (Projectile)
-PROJECTILE_SPEED = 10  # 화면 크기에 맞춰 탄환 속도 상향 (7 -> 10)
+PROJECTILE_SPEED = 10  
 PROJECTILE_RADIUS = 5
 
 # 격자 크기 설정
 GRID_SIZE = 40
 
-# 3종 포탑 스탯 데이터 (넓어진 화면에 맞게 사거리 전면 상향)
+# 3종 포탑 스탯 데이터
 TOWER_TYPES = {
     "Basic": {
         "range": 200,
@@ -41,8 +41,7 @@ TOWER_TYPES = {
         "radius": 16,
         "color": (50, 50, 255),
         "bullet_color": (255, 255, 50),
-        "damage": 25,
-        "cost": 0
+        "damage": 25
     },
     "Sniper": {
         "range": 380,
@@ -50,8 +49,7 @@ TOWER_TYPES = {
         "radius": 18,
         "color": (150, 50, 200),
         "bullet_color": (255, 100, 100),
-        "damage": 70,
-        "cost": 0
+        "damage": 70
     },
     "Rapid": {
         "range": 130,
@@ -59,24 +57,22 @@ TOWER_TYPES = {
         "radius": 14,
         "color": (50, 200, 200),
         "bullet_color": (100, 255, 100),
-        "damage": 8,
-        "cost": 0
+        "damage": 8
     }
 }
 
-# 웨이브 시스템 데이터
-MAX_WAVES = 3
-WAVE_ENEMY_COUNTS = [6, 12, 18]          # 맵이 넓어진 만큼 물량 상향
-WAVE_HEALTH_MULTIPLIERS = [1.0, 1.7, 2.5] # 후반 웨이브 몹 체력 강화
+# [추가] 경제 시스템 경제 지표 변수 선언
+TOWER_COSTS = {"Basic": 50, "Sniper": 100, "Rapid": 80}
+EQUIP_COSTS = {"Ice Gem": 60, "Explosive Ammo": 80}
 
-# [변경] 1600x900 스케일에 맞춘 복잡한 3대 진입 경로 (우측 하단으로 수렴)
+# 웨이브 시스템 데이터
+MAX_WAVES = 10 # 테스트를 위해 웨이브 수를 3으로 제한
+WAVE_ENEMY_COUNTS = [3,6,9,12,15,18,21,24,27,30] # 테스트를 위해 각 웨이브마다 1마리씩만 등장하도록 설정
+WAVE_HEALTH_MULTIPLIERS = [0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0] # test
+
+# 복잡한 3대 진입 경로
 RAW_PATHS = [
-    # 경로 1 (Wave 1부터 활성화): 좌측 상단 진입 -> 중앙 S자 순회
     [(0, 240), (480, 240), (480, 520), (1080, 520), (1080, 760), (1600, 760)],
-    
-    # 경로 2 (Wave 2부터 활성화): 상단 중앙 진입 -> 수직 하강 후 우회
     [(800, 0), (800, 360), (1360, 360), (1360, 760), (1600, 760)],
-    
-    # 경로 3 (Wave 3부터 활성화): 좌측 하단 진입 -> 상단 우회 루프
     [(0, 680), (280, 680), (280, 120), (1360, 120), (1360, 440), (1480, 440), (1480, 760), (1600, 760)]
 ]
