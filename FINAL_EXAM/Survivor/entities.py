@@ -2,7 +2,7 @@ import pygame
 import random
 import math
 from Sub_config import *
-from weapons import Projectile, Boomerang, BouncingOrb, Chakram
+from weapons import Projectile, Boomerang, BouncingOrb, Chakram, SwordWave
 from effects import SlashEffect, LightningEffect, DamageText, BeamEffect, BlizzardEffect
 
 class Player:
@@ -24,22 +24,23 @@ class Player:
         self.god_mode = False
 
         self.weapons = {
-            "ranged": {"active": True, "cooldown": 35, "timer": 0, "base_damage": 15, "count": 1, "name": "Ranged Magic", "desc": "[원거리] 마법 구체를 발사합니다."},
-            "melee": {"active": False, "cooldown": 100, "timer": 0, "base_damage": 35, "rear": False, "name": "Spirit Sword", "desc": "[근접] 주변 적을 한 번에 베어버립니다."},
-            "orbit": {"active": False, "angle": 0.0, "speed": 0.04, "base_damage": 8, "radius": 75, "count": 1, "name": "Orbiting Shield", "desc": "[오라] 주변을 공전하며 피해를 줍니다."},
-            "axe": {"active": False, "cooldown": 120, "timer": 0, "base_damage": 50, "name": "Heavy Axe", "desc": "[투척] 적을 관통하는 둔탁한 도끼를 던집니다."},
-            "boomerang": {"active": False, "cooldown": 90, "timer": 0, "base_damage": 25, "name": "Boomerang", "desc": "[특수] 궤도를 돌고 되돌아오는 부메랑입니다."},
-            "bounce": {"active": False, "cooldown": 110, "timer": 0, "base_damage": 20, "name": "Magic Wand", "desc": "[마법] 맵의 벽에 튕기는 통통탄을 쏩니다."},
-            "trail": {"active": False, "cooldown": 120, "timer": 0, "base_damage": 15, "name": "Meteor Strike", "desc": "[폭격] 주변 무작위 위치에 화염 장판을 폭격합니다."},
-            "lightning": {"active": False, "cooldown": 80, "timer": 0, "base_damage": 25, "chain_count": 5, "bolt_count": 1, "name": "Chain Lightning", "desc": "[전기] 적을 관통하며 전이되는 번개를 방출합니다."},
-            "beam": {"active": False, "cooldown": 180, "timer": 0, "base_damage": 100, "width": 20, "name": "Orbital Beam", "desc": "[관통] 조준 방향으로 화면을 뚫는 거대 레이저를 쏩니다."},
-            "blizzard": {"active": False, "cooldown": 200, "timer": 0, "base_damage": 10, "radius": 180, "freeze_time": 180, "name": "Blizzard", "desc": "[결빙] 광역 눈보라를 일으켜 닿은 적을 3초간 얼려버립니다."},
-            "chakram": {"active": False, "cooldown": 100, "timer": 0, "base_damage": 30, "burn_dmg": 5, "name": "Hellfire Chakram", "desc": "[화상] 적에게 지속 화상 피해를 입히는 차크람을 던집니다."}
+            "ranged": {"active": True, "level": 1, "max_level": 5, "cooldown": 35, "timer": 0, "base_damage": 15, "count": 1, "name": "Ranged Magic", "desc": "[원거리] 마법 구체를 발사합니다."},
+            "melee": {"active": False, "level": 1, "max_level": 5, "cooldown": 100, "timer": 0, "base_damage": 35, "rear": False, "name": "Spirit Sword", "desc": "[근접] 전방으로 적을 관통하는 검기를 날립니다."},
+            "orbit": {"active": False, "level": 1, "max_level": 5, "angle": 0.0, "speed": 0.04, "base_damage": 8, "radius": 75, "count": 1, "name": "Orbiting Shield", "desc": "[오라] 주변을 공전하며 피해를 줍니다."},
+            "axe": {"active": False, "level": 1, "max_level": 5, "cooldown": 120, "timer": 0, "base_damage": 50, "name": "Heavy Axe", "desc": "[투척] 적을 관통하는 둔탁한 도끼를 던집니다."},
+            "boomerang": {"active": False, "level": 1, "max_level": 5, "cooldown": 90, "timer": 0, "base_damage": 25, "name": "Boomerang", "desc": "[특수] 궤도를 돌고 되돌아오는 부메랑입니다."},
+            "bounce": {"active": False, "level": 1, "max_level": 5, "cooldown": 110, "timer": 0, "base_damage": 20, "name": "Magic Wand", "desc": "[마법] 맵의 벽에 튕기는 통통탄을 쏩니다."},
+            "trail": {"active": False, "level": 1, "max_level": 5, "cooldown": 120, "timer": 0, "base_damage": 15, "name": "Meteor Strike", "desc": "[폭격] 주변 무작위 위치에 화염 장판을 폭격합니다."},
+            "lightning": {"active": False, "level": 1, "max_level": 5, "cooldown": 80, "timer": 0, "base_damage": 25, "chain_count": 5, "bolt_count": 1, "name": "Chain Lightning", "desc": "[전기] 적을 관통하며 전이되는 번개를 방출합니다."},
+            "beam": {"active": False, "level": 1, "max_level": 5, "cooldown": 180, "timer": 0, "base_damage": 100, "width": 20, "name": "Orbital Beam", "desc": "[관통] 조준 방향으로 화면을 뚫는 거대 레이저를 쏩니다."},
+            "blizzard": {"active": False, "level": 1, "max_level": 5, "cooldown": 200, "timer": 0, "base_damage": 10, "radius": 180, "freeze_time": 180, "name": "Blizzard", "desc": "[결빙] 광역 눈보라를 일으켜 닿은 적을 3초간 얼려버립니다."},
+            "chakram": {"active": False, "level": 1, "max_level": 5, "cooldown": 100, "timer": 0, "base_damage": 30, "burn_dmg": 5, "name": "Hellfire Chakram", "desc": "[화상] 적에게 지속 화상 피해를 입히는 차크람을 던집니다."},
+            "storm": {"active": False, "level": 1, "max_level": 1, "cooldown": 30, "timer": 0, "base_damage": 25, "radius": 220, "burn_dmg": 15, "freeze_time": 90, "name": "Elemental Storm", "desc": "[합체] 빙염의 폭풍이 상시 전개되어 빙결과 화상을 줍니다."}
         }
+        self.storm_angle = 0.0 # 폭풍 회전 애니메이션용 변수
+        self.damage_stats = {key: 0 for key in self.weapons.keys()}
 
-    # [신규] 카드 획득 증가분 + 페이즈(자동 증가분)을 합산한 최종 공격력 배율 반환
     def get_total_dmg_mult(self):
-        # 페이즈가 1 오를 때마다 공격력이 10%씩(0.1) 자동으로 강해짐
         phase_bonus = (self.phase - 1) * 0.10
         return self.global_dmg_mult + phase_bonus
 
@@ -76,10 +77,9 @@ class Player:
         proj = a + ab * t
         return p.distance_to(proj)
 
-    def update_weapons(self, enemies, projectiles, slashes, dmg_texts, boomerangs, bouncing_orbs, fire_zones, lightnings, beams, blizzards, chakrams):
+    # [수정] slashes 파라미터를 삭제하고 sword_waves 리스트를 전달받습니다.
+    def update_weapons(self, enemies, projectiles, sword_waves, dmg_texts, boomerangs, bouncing_orbs, fire_zones, lightnings, beams, blizzards, chakrams):
         target_dir = self.update_target(enemies)
-        
-        # [적용] 무기를 발사할 때 자동 상승분이 포함된 최종 배율을 가져옴
         current_mult = self.get_total_dmg_mult()
         
         if self.weapons["ranged"]["active"]:
@@ -87,28 +87,27 @@ class Player:
             if self.weapons["ranged"]["timer"] >= self.weapons["ranged"]["cooldown"]:
                 self.weapons["ranged"]["timer"] = 0
                 dmg = int(self.weapons["ranged"]["base_damage"] * current_mult)
-                
                 count = self.weapons["ranged"]["count"]
                 base_angle = math.degrees(math.atan2(target_dir.y, target_dir.x))
                 spread_gap = 7.0 
                 start_angle = base_angle - ((count - 1) * spread_gap / 2.0)
-                
                 for i in range(count):
                     final_angle = math.radians(start_angle + (i * spread_gap))
                     fire_dir = pygame.math.Vector2(math.cos(final_angle), math.sin(final_angle))
-                    projectiles.append(Projectile(self.pos, fire_dir, dmg, pierce=2, color=YELLOW, radius=6))
+                    projectiles.append(Projectile(self.pos, fire_dir, dmg, pierce=2, color=YELLOW, radius=6, weapon_id="ranged"))
 
+        # [수정] 즉발 타격이 아닌 검기(SwordWave) 투사체 생성으로 변경
         if self.weapons["melee"]["active"]:
             self.weapons["melee"]["timer"] += 1
             if self.weapons["melee"]["timer"] >= self.weapons["melee"]["cooldown"]:
                 self.weapons["melee"]["timer"] = 0
                 dmg = int(self.weapons["melee"]["base_damage"] * current_mult)
-                slashes.append(SlashEffect(self.pos + target_dir * 30, 90))
+                
+                # 전방으로 검기 발사
+                sword_waves.append(SwordWave(self.pos, target_dir, dmg))
                 if self.weapons["melee"]["rear"]:
-                    slashes.append(SlashEffect(self.pos - target_dir * 30, 90))
-                for e in enemies:
-                    if self.pos.distance_to(e.pos) < 90 + e.radius:
-                        e.take_damage(dmg, dmg_texts)
+                    # 후방으로 검기 발사
+                    sword_waves.append(SwordWave(self.pos, -target_dir, dmg))
 
         if self.weapons["orbit"]["active"]:
             orbit = self.weapons["orbit"]
@@ -121,44 +120,53 @@ class Player:
                         if e.can_receive_tick_damage("orbit", 15):
                             dmg = int(orbit["base_damage"] * current_mult)
                             e.take_damage(dmg, dmg_texts)
+                            self.damage_stats["orbit"] += dmg 
 
         if self.weapons["axe"]["active"]:
             self.weapons["axe"]["timer"] += 1
             if self.weapons["axe"]["timer"] >= self.weapons["axe"]["cooldown"]:
                 self.weapons["axe"]["timer"] = 0
                 dmg = int(self.weapons["axe"]["base_damage"] * current_mult)
-                projectiles.append(Projectile(self.pos, target_dir, dmg, pierce=5, color=GREY, radius=12))
+                projectiles.append(Projectile(self.pos, target_dir, dmg, pierce=5, color=GREY, radius=12, weapon_id="axe"))
 
         if self.weapons["boomerang"]["active"]:
             self.weapons["boomerang"]["timer"] += 1
             if self.weapons["boomerang"]["timer"] >= self.weapons["boomerang"]["cooldown"]:
                 self.weapons["boomerang"]["timer"] = 0
                 dmg = int(self.weapons["boomerang"]["base_damage"] * current_mult)
-                boomerangs.append(Boomerang(self.pos, target_dir, dmg))
+                boomerangs.append(Boomerang(self.pos, target_dir, dmg, weapon_id="boomerang"))
 
         if self.weapons["bounce"]["active"]:
             self.weapons["bounce"]["timer"] += 1
             if self.weapons["bounce"]["timer"] >= self.weapons["bounce"]["cooldown"]:
                 self.weapons["bounce"]["timer"] = 0
                 dmg = int(self.weapons["bounce"]["base_damage"] * current_mult)
-                bouncing_orbs.append(BouncingOrb(self.pos, target_dir, dmg))
+                bouncing_orbs.append(BouncingOrb(self.pos, target_dir, dmg, weapon_id="bounce"))
 
         if self.weapons["trail"]["active"]:
             self.weapons["trail"]["timer"] += 1
             if self.weapons["trail"]["timer"] >= self.weapons["trail"]["cooldown"]:
                 self.weapons["trail"]["timer"] = 0
                 dmg = int(self.weapons["trail"]["base_damage"] * current_mult)
-                drop_radius = 300 
                 
-                for _ in range(3): 
-                    angle = random.uniform(0, math.pi * 2)
-                    dist = random.uniform(0, drop_radius)
-                    spawn_pos = pygame.math.Vector2(
-                        self.pos.x + math.cos(angle) * dist,
-                        self.pos.y + math.sin(angle) * dist
-                    )
-                    from weapons import FireZone
-                    fire_zones.append(FireZone(spawn_pos, dmg))
+                from weapons import MeteorDrop
+                targets = []
+                
+                # 1. 화면에 적이 있으면 무작위로 3마리(또는 남은 수만큼) 조준
+                if len(enemies) > 0:
+                    sample_size = min(3, len(enemies))
+                    targets = random.sample(enemies, sample_size)
+                    
+                for t in targets:
+                    fire_zones.append(MeteorDrop(t.pos, dmg, weapon_id="trail"))
+                    
+                # 2. 만약 적이 없거나 3마리보다 적다면, 남은 개수만큼 플레이어 주변 무작위 투하
+                if len(targets) < 3:
+                    for _ in range(3 - len(targets)):
+                        angle = random.uniform(0, math.pi * 2)
+                        dist = random.uniform(50, 200)
+                        spawn_pos = pygame.math.Vector2(self.pos.x + math.cos(angle) * dist, self.pos.y + math.sin(angle) * dist)
+                        fire_zones.append(MeteorDrop(spawn_pos, dmg, weapon_id="trail"))
 
         if self.weapons["lightning"]["active"]:
             self.weapons["lightning"]["timer"] += 1
@@ -174,13 +182,14 @@ class Player:
                     current_enemy = start_enemy
                     points = [self.pos, current_enemy.pos] 
                     current_enemy.take_damage(dmg, dmg_texts)
+                    self.damage_stats["lightning"] += dmg 
                     for _ in range(max_chains - 1): 
                         next_enemy = None
                         min_dist = float('inf')
                         for e in enemies:
                             if e not in hit_list:
                                 dist = current_enemy.pos.distance_squared_to(e.pos)
-                                if dist < 62500: 
+                                if dist < 14400: 
                                     if dist < min_dist:
                                         min_dist = dist
                                         next_enemy = e
@@ -188,6 +197,7 @@ class Player:
                             hit_list.append(next_enemy)
                             points.append(next_enemy.pos)
                             next_enemy.take_damage(dmg, dmg_texts)
+                            self.damage_stats["lightning"] += dmg 
                             current_enemy = next_enemy
                         else: break 
                     lightnings.append(LightningEffect(points))
@@ -203,6 +213,7 @@ class Player:
                 for e in enemies:
                     if self.point_line_distance(e.pos, self.pos, end_pos) < (width/2) + e.radius:
                         e.take_damage(dmg, dmg_texts)
+                        self.damage_stats["beam"] += dmg 
 
         if self.weapons["blizzard"]["active"]:
             self.weapons["blizzard"]["timer"] += 1
@@ -215,6 +226,7 @@ class Player:
                 for e in enemies:
                     if self.pos.distance_to(e.pos) < radius + e.radius:
                         e.take_damage(dmg, dmg_texts)
+                        self.damage_stats["blizzard"] += dmg 
                         e.freeze_timer = freeze_time 
 
         if self.weapons["chakram"]["active"]:
@@ -222,7 +234,32 @@ class Player:
             if self.weapons["chakram"]["timer"] >= self.weapons["chakram"]["cooldown"]:
                 self.weapons["chakram"]["timer"] = 0
                 dmg = int(self.weapons["chakram"]["base_damage"] * current_mult)
-                chakrams.append(Chakram(self.pos, target_dir, dmg))
+                
+                # [수정] 조준 방향을 기준으로 -15도, 0도, +15도 방향으로 3개 동시 생성
+                base_angle = math.degrees(math.atan2(target_dir.y, target_dir.x))
+                angles = [base_angle - 15, base_angle, base_angle + 15]
+                
+                for ang in angles:
+                    rad_ang = math.radians(ang)
+                    fire_dir = pygame.math.Vector2(math.cos(rad_ang), math.sin(rad_ang))
+                    chakrams.append(Chakram(self.pos, fire_dir, dmg, weapon_id="chakram"))
+
+                    # ... 기존 무기 로직들 아래에 추가
+        if self.weapons["storm"]["active"]:
+            self.weapons["storm"]["timer"] += 1
+            if self.weapons["storm"]["timer"] >= self.weapons["storm"]["cooldown"]:
+                self.weapons["storm"]["timer"] = 0
+                dmg = int(self.weapons["storm"]["base_damage"] * current_mult)
+                rad = self.weapons["storm"]["radius"]
+                
+                # 반경 안의 모든 적에게 즉발 데미지 + 빙결 + 강력한 화상 동시 부여
+                for e in enemies:
+                    if self.pos.distance_to(e.pos) < rad + e.radius:
+                        e.take_damage(dmg, dmg_texts)
+                        self.damage_stats["storm"] += dmg 
+                        e.freeze_timer = self.weapons["storm"]["freeze_time"]
+                        e.burn_timer = 180
+                        e.burn_damage = int(self.weapons["storm"]["burn_dmg"] * current_mult)
 
 
     def draw(self, surface, cam):
@@ -238,6 +275,25 @@ class Player:
                 orb_screen_x = int(self.pos.x + math.cos(orbit["angle"] + angle_offset) * orbit["radius"] - cam.x)
                 orb_screen_y = int(self.pos.y + math.sin(orbit["angle"] + angle_offset) * orbit["radius"] - cam.y)
                 pygame.draw.circle(surface, PURPLE, (orb_screen_x, orb_screen_y), 10)
+                
+                # draw 함수 맨 아래 orbit 렌더링 아래쪽에 추가
+        if self.weapons["storm"]["active"]:
+            self.storm_angle += 0.08
+            rad = self.weapons["storm"]["radius"]
+            
+            # 반투명 캔버스 생성 (하늘색 베이스)
+            s = pygame.Surface((rad * 2, rad * 2), pygame.SRCALPHA)
+            pygame.draw.circle(s, (0, 255, 255, 40), (rad, rad), rad)
+            
+            # 주황색 십자선이 소용돌이치듯 회전하는 효과
+            for i in range(4):
+                angle = self.storm_angle + (math.pi / 2) * i
+                p1 = (rad + math.cos(angle) * rad, rad + math.sin(angle) * rad)
+                pygame.draw.line(s, (255, 100, 0, 150), (rad, rad), p1, 15)
+                
+            surface.blit(s, (screen_pos[0] - rad, screen_pos[1] - rad))
+            pygame.draw.circle(surface, CYAN, screen_pos, rad, 3)
+            pygame.draw.circle(surface, ORANGE, screen_pos, rad - 8, 3)
 
 
 class Enemy:
@@ -274,7 +330,7 @@ class Enemy:
             return True
         return False
 
-    def update_timers(self, dmg_texts):
+    def update_timers(self, dmg_texts, player):
         for w_id in self.tick_timers:
             self.tick_timers[w_id] += 1
             
@@ -287,6 +343,7 @@ class Enemy:
             if self.burn_tick >= 60: 
                 self.burn_tick = 0
                 self.take_damage(self.burn_damage, dmg_texts)
+                player.damage_stats["chakram"] += self.burn_damage 
 
     def move_towards_player(self, player_pos, player_obj):
         dir_vector = player_pos - self.pos
