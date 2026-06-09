@@ -22,6 +22,8 @@ class Player:
         self.phase = 1
         self.global_dmg_mult = 1.0
         self.god_mode = False
+        self.pickup_radius = 150  
+        self.invincible_timer = 0       
 
         self.weapons = {
             "ranged": {"active": True, "level": 1, "max_level": 5, "cooldown": 35, "timer": 0, "base_damage": 15, "count": 1, "name": "Ranged Magic", "desc": "[원거리] 마법 구체를 발사합니다."},
@@ -45,6 +47,10 @@ class Player:
         return self.global_dmg_mult + phase_bonus
 
     def handle_input(self):
+        
+        if self.invincible_timer > 0:
+            self.invincible_timer -= 1
+            
         keys = pygame.key.get_pressed()
         move_dir = pygame.math.Vector2(0, 0)
         if keys[pygame.K_w] or keys[pygame.K_UP]: move_dir.y -= 1
@@ -264,6 +270,14 @@ class Player:
 
     def draw(self, surface, cam):
         screen_pos = (int(self.pos.x - cam.x), int(self.pos.y - cam.y))
+        
+        is_blinking = self.invincible_timer > 0 and (self.invincible_timer // 4) % 2 == 0
+        
+        if not is_blinking:
+            pygame.draw.circle(surface, BLUE, screen_pos, self.radius)
+            eye_pos = (int(screen_pos[0] + self.aim_dir.x * 10), int(screen_pos[1] + self.aim_dir.y * 10))
+            pygame.draw.circle(surface, WHITE, eye_pos, 4)    
+        
         pygame.draw.circle(surface, BLUE, screen_pos, self.radius)
         eye_pos = (int(screen_pos[0] + self.aim_dir.x * 10), int(screen_pos[1] + self.aim_dir.y * 10))
         pygame.draw.circle(surface, WHITE, eye_pos, 4)
@@ -359,8 +373,9 @@ class Enemy:
         self.pos.y = max(self.radius, min(WORLD_HEIGHT - self.radius, self.pos.y))
 
         if dist < self.radius + player_obj.radius:
-            if not player_obj.god_mode:
-                player_obj.hp -= (self.attack * 0.016) 
+            if not player_obj.god_mode and player_obj.invincible_timer <= 0:
+                player_obj.hp -= self.attack
+                player_obj.invincible_timer = 30
 
     def take_damage(self, amount, dmg_texts):
         self.hp -= amount
@@ -385,3 +400,58 @@ class Enemy:
         pygame.draw.rect(surface, BLACK, (bar_x, bar_y, bar_width, bar_height))
         hp_ratio = max(0.0, min(1.0, self.hp / self.max_hp))
         pygame.draw.rect(surface, GREEN, (bar_x, bar_y, int(bar_width * hp_ratio), bar_height))
+        
+class ExpGem:
+    def __init__(self, pos, amount):
+        import random
+        self.pos = pygame.math.Vector2(pos)
+        self.amount = amount
+        self.radius = max(6, min(amount // 3, 12)) 
+        
+        if amount < 25: self.color = GREEN
+        elif amount < 50: self.color = CYAN
+        else: self.color = YELLOW
+            
+        # [신규] 속도를 벡터로 관리합니다. 스폰될 때 사방으로 살짝 흩뿌려지는 힘(Popping)을 줍니다.
+        self.velocity = pygame.math.Vector2(random.uniform(-2, 2), random.uniform(-2, 2))
+        self.pull_force = 0.0 # 플레이어에게 당겨지는 힘
+        self.is_moving = False
+
+    def update(self, player):
+        dist = self.pos.distance_to(player.pos)
+        
+        # 플레이어 자석 반경에 닿으면 끌려가는 상태로 전환
+        if dist < player.pickup_radius:
+            self.is_moving = True
+
+        if self.is_moving:
+            if dist > 0:
+                dir_vector = (player.pos - self.pos).normalize()
+                
+                # 1. 당기는 힘이 시간이 지날수록 점점 강해짐 (처음엔 머뭇, 나중엔 휙!)
+                self.pull_force += 0.15 
+                
+                # 2. 속도 벡터에 힘을 누적 (일직선이 아니라 관성에 의해 곡선으로 휘어지며 끌려감)
+                self.velocity += dir_vector * self.pull_force
+                
+                # 3. 마찰력 적용 (위성처럼 빙글빙글 도는 오버슛 현상 방지 & 부드러운 움직임 제어)
+                self.velocity *= 0.88 
+        else:
+            # 아직 끌려가지 않는 상태라면, 처음에 흩뿌려진 속도를 마찰력으로 서서히 줄여서 멈추게 함
+            if self.velocity.length() > 0.1:
+                self.velocity *= 0.85 
+                
+        # 최종적으로 계산된 벡터 속도를 현재 위치에 적용
+        self.pos += self.velocity
+                
+        return dist < player.radius + self.radius
+
+    def draw(self, surface, cam):
+        screen_pos = (int(self.pos.x - cam.x), int(self.pos.y - cam.y))
+        
+        pygame.draw.circle(surface, self.color, screen_pos, self.radius)
+        pygame.draw.circle(surface, WHITE, screen_pos, self.radius, 2) 
+        
+        line_len = self.radius - 2
+        pygame.draw.line(surface, WHITE, (screen_pos[0] - line_len, screen_pos[1]), (screen_pos[0] + line_len, screen_pos[1]), 2)
+        pygame.draw.line(surface, WHITE, (screen_pos[0], screen_pos[1] - line_len), (screen_pos[0], screen_pos[1] + line_len), 2)

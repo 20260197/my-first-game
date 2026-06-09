@@ -1,9 +1,9 @@
 import pygame
 import sys
 from Sub_config import *
-from utils import get_korean_font
-from entities import Player, Enemy
-from upgrades import generate_cards, apply_card_effect
+from utils import *
+from entities import *
+from upgrades import *
 
 pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -12,9 +12,10 @@ clock = pygame.time.Clock()
 
 def reset_game():
     global player, enemies, projectiles, sword_waves, dmg_texts, boomerangs, bouncing_orbs, fire_zones, lightnings, beams, blizzards, chakrams
-    global camera, frame_count, level_up_active
+    global gems, camera, frame_count, level_up_active
     player = Player()
     enemies = []
+    gems = []
     projectiles = []
     sword_waves = []  
     dmg_texts = [] 
@@ -220,7 +221,14 @@ while running:
                         enemies.remove(e)
                         player.kills += 1
                         player.phase = (player.kills // KILLS_PER_PHASE) + 1
-                        player.xp += e.xp_reward
+                        
+                        from entities import ExpGem
+                        gems.append(ExpGem(e.pos, e.xp_reward))
+                        
+                for gem in gems[:]:
+                    if gem.update(player):
+                        player.xp += gem.amount
+                        gems.remove(gem)
 
             if player.hp <= 0:
                 state = "GAMEOVER" 
@@ -247,6 +255,12 @@ while running:
         for bo in bouncing_orbs: bo.draw(screen, camera)
         for lg in lightnings: lg.draw(screen, camera)
         for bm_eff in beams: bm_eff.draw(screen, camera)
+        # ... (이전 이펙트 렌더링 코드들)
+        for lg in lightnings: lg.draw(screen, camera)
+        for bm_eff in beams: bm_eff.draw(screen, camera)
+        
+        # 👉 [이 줄이 있는지 반드시 확인하고 추가해 주세요!] 👈
+        for gem in gems: gem.draw(screen, camera)
         
         for e in enemies: e.draw(screen, camera)
         player.draw(screen, camera)
@@ -459,9 +473,35 @@ while running:
             num_surf = get_korean_font(30).render(f"[{idx + 1}]", True, CYAN)
             screen.blit(num_surf, (rect.centerx - num_surf.get_width() // 2, rect.y - 45))
             
+            # ==========================================
+            # [신규] 카테고리 태그(뱃지) UI 렌더링
+            # ==========================================
+            tag_dict = {
+                "unlock": ("신규 무기", GREEN),
+                "upgrade": ("무기 강화", YELLOW),
+                "stat": ("기본 스탯", BLUE),
+                "consumable": ("일회성", RED),
+                "union": ("합체 진화", PURPLE)
+            }
+            
+            c_type = choice_data.get("type", "stat")
+            tag_text, tag_color = tag_dict.get(c_type, ("강화", WHITE))
+            
+            tag_font = get_korean_font(18)
+            tag_surf = tag_font.render(tag_text, True, tag_color)
+            
+            # 태그의 배경(뱃지 형태)을 그립니다.
+            tag_rect = pygame.Rect(rect.centerx - tag_surf.get_width()//2 - 10, rect.y + 15, tag_surf.get_width() + 20, tag_surf.get_height() + 10)
+            pygame.draw.rect(screen, (30, 30, 35), tag_rect, border_radius=5)
+            pygame.draw.rect(screen, tag_color, tag_rect, 1, border_radius=5)
+            screen.blit(tag_surf, (rect.centerx - tag_surf.get_width()//2, rect.y + 20))
+            
+            # ==========================================
+            
             card_title_font = get_korean_font(24)
             name_surf = card_title_font.render(choice_data["name"], True, YELLOW)
-            screen.blit(name_surf, (rect.centerx - name_surf.get_width() // 2, rect.y + 50))
+            # 태그가 공간을 차지하므로 타이틀 Y축 위치를 +50에서 +65로 내림
+            screen.blit(name_surf, (rect.centerx - name_surf.get_width() // 2, rect.y + 65)) 
             
             desc_font = get_korean_font(20)
             max_width = rect.width - 30 
@@ -480,10 +520,12 @@ while running:
                 if current_line:
                     lines.append(current_line)
             
-            y_offset = rect.y + 110 
+            # 설명란 Y축 위치도 +110에서 +115로 약간 내림
+            # 설명란 Y축 위치 설정 및 출력
+            y_offset = rect.y + 115 
             for i, line_text in enumerate(lines):
-                color = WHITE if i == 0 else GREY
-                desc_surf = desc_font.render(line_text.strip(), True, color)
+                # 첫 줄/나머지 줄 구분 없이 전부 WHITE(흰색)로 통일하여 출력합니다.
+                desc_surf = desc_font.render(line_text.strip(), True, WHITE)
                 screen.blit(desc_surf, (rect.centerx - desc_surf.get_width() // 2, y_offset))
                 y_offset += 28
 
