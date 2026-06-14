@@ -13,11 +13,11 @@
 >>> A1. 코드의 하단 그리기(draw) 섹션에 위치한 이 두 줄이 AABB를 화면에 표시하는 역할을 합니다.
 >>> 1. 원형 플레이어를 감싸는 AABB 테두리 그리기
 
-pygame.draw.rect(screen, AABB_RED, player_aabb, 2)
+>>> pygame.draw.rect(screen, AABB_RED, player_aabb, 2)
 
 >>> 2. 고정 사각형의 AABB 테두리 그리기
 
-pygame.draw.rect(screen, AABB_RED, fixed_rect_aabb, 2)
+>>> pygame.draw.rect(screen, AABB_RED, fixed_rect_aabb, 2)
 
 ## 🛠️ pygame.draw.rect 인자 상세 설명
 ### pygame.draw.rect(surface, color, rect, width)의 각 인자는 다음과 같은 의미를 가집니다.
@@ -154,14 +154,14 @@ pygame.draw.rect(screen, AABB_RED, fixed_rect_aabb, 2)
 > 원형 충돌의 수학적 원리
 >> 사각형 충돌(AABB)은 단순히 면적이 겹치는지를 보지만, 원형 충돌은 두 점 사이의 거리를 이용합니다.
 
->> $$Distance(P_1, P_2) \le Radius_1 + Radius_2$$
+- $$Distance(P_1, P_2) \le Radius_1 + Radius_2$$
 
 >> 두 오브젝트의 중심 사이의 거리가 각 반지름을 더한 값보다 작으면 "겹쳤다"고 판단합니다. 코드에서는 pygame.math.Vector2의 distance_to 함수를 사용하여 피타고라스 정리를 한 줄로 처리했습니다.
 
 > 시각적 차이점 관찰하기
 >> 이 코드를 실행해보면 재미있는 점을 발견할 수 있습니다.
->>> AABB(빨간색): 사각형의 모서리 부분이 닿았을 때 먼저 충돌이 발생합니다.
->>> 원형(파란색): 모서리 부분에서는 충돌이 일어나지 않다가, 사각형의 몸체 쪽으로 더 깊숙이 들어가야 배경이 노란색으로 변합니다.
+>>> - AABB(빨간색): 사각형의 모서리 부분이 닿았을 때 먼저 충돌이 발생합니다.
+>>> - 원형(파란색): 모서리 부분에서는 충돌이 일어나지 않다가, 사각형의 몸체 쪽으로 더 깊숙이 들어가야 배경이 노란색으로 변합니다.
 
 > 왜 반지름을 너비의 절반으로 하나요?
 >> 사각형을 완전히 감싸는 원(외접원)을 만들 수도 있지만, 보통 게임에서는 캐릭터의 본체 부피에 가장 가깝게 맞추기 위해 너비의 절반을 반지름으로 사용합니다. 이를 통해 '히트박스'의 오차를 줄일 수 있습니다.
