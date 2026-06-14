@@ -4,6 +4,7 @@ from Sub_config import *
 from utils import *
 from entities import *
 from upgrades import *
+from resource_manager import *
 
 pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -13,7 +14,11 @@ clock = pygame.time.Clock()
 def reset_game():
     global player, enemies, projectiles, sword_waves, dmg_texts, boomerangs, bouncing_orbs, fire_zones, lightnings, beams, blizzards, chakrams
     global gems, camera, frame_count, level_up_active
+    global boss_active, boss_list, boss_projectiles
     player = Player()
+    boss_active = False
+    boss_list = []
+    boss_projectiles = []
     enemies = []
     gems = []
     projectiles = []
@@ -102,11 +107,18 @@ while running:
                         if event.key == pygame.K_F2: player.god_mode = not player.god_mode
                         elif event.key == pygame.K_F3: player.xp = player.max_xp
                         elif event.key == pygame.K_F4: 
-                            player.kills += KILLS_PER_PHASE
-                            player.phase = (player.kills // KILLS_PER_PHASE) + 1
+                            if player.kills < PHASE_THRESHOLDS[0]:
+                                player.kills = PHASE_THRESHOLDS[0]
+                                player.phase = 2
+                            elif player.kills < PHASE_THRESHOLDS[1]:
+                                player.kills = PHASE_THRESHOLDS[1]
+                                player.phase = 3
+                            elif player.kills < PHASE_THRESHOLDS[2]:
+                                player.kills = PHASE_THRESHOLDS[2]
+                                player.phase = 4
                         elif event.key == pygame.K_F5: 
                             show_mechanics = not show_mechanics
-                        
+
                         elif event.key == pygame.K_1: player.weapons["melee"]["active"] = not player.weapons["melee"]["active"]
                         elif event.key == pygame.K_2: player.weapons["orbit"]["active"] = not player.weapons["orbit"]["active"]
                         elif event.key == pygame.K_3: player.weapons["axe"]["active"] = not player.weapons["axe"]["active"]
@@ -121,15 +133,15 @@ while running:
     if state == "PLAY":
         if not level_up_active:
             if player.xp >= player.max_xp:
-                player.xp -= player.max_xp
                 player.level += 1
-                player.max_xp = int(player.max_xp * XP_MULTIPLIER)
-                
+                player.xp -= player.max_xp
+                player.max_xp = 15 + (player.level * 20) 
+                level_up_active = True
+
                 heal_amount = player.max_hp * 0.20
                 player.hp = min(player.max_hp, player.hp + heal_amount)
                 
                 current_choices = generate_cards(player)
-                level_up_active = True
 
         if not level_up_active:
             frame_count += 1
@@ -140,21 +152,81 @@ while running:
             camera.y = player.pos.y - HEIGHT / 2
 
             spawn_rate = max(8, 35 - (player.phase * 4))
-            if frame_count % spawn_rate == 0:
-                enemies.append(Enemy(player.pos, player.phase))
+            
+            # --- 몬스터 스폰 로직 ---
+            if player.phase >= 4:  
+                if not boss_active:
+                    boss_active = True
+                    enemies.clear() # 화면의 잔몹들을 전부 청소
 
+                    # ==========================================
+                    # [신규] 필드의 모든 보석 강제 초고속 흡수 트리거
+                    # ==========================================
+                    for gem in gems:
+                        gem.is_moving = True
+                        gem.pull_force = 3.0  # 평소(0.15)보다 훨씬 강한 초기 인력 부여
+                    # ==========================================
+                    
+                    from entities import Boss
+                    import random
+                    spawn_pos = player.pos + pygame.math.Vector2(600, 0).rotate(random.uniform(0, 360))
+                    enemies.append(Boss(spawn_pos, hp=5000)) # 원래 보스 HP
+                    # enemies.append(Boss(spawn_pos, hp=10)) # 테스트용으로 HP를 낮춰서 바로 보스전 진입 및 클리어 가능하도록 조정   
+            else:
+                if frame_count % spawn_rate == 0:
+                    import random
+                    angle = random.uniform(0, math.pi * 2)
+                    dist = random.uniform(WIDTH // 2, WIDTH // 2 + 200)
+                    spawn_pos = pygame.math.Vector2(player.pos.x + math.cos(angle) * dist, player.pos.y + math.sin(angle) * dist)
+                    from entities import Enemy
+                    enemies.append(Enemy(spawn_pos, player.phase))
+
+            # --- [신규] 보스 및 탄막 업데이트 로직 ---
+            if boss_active:
+                for b in boss_list[:]:
+                    b.update(player, boss_projectiles)
+                    # 보스 처치 시 게임 클리어!
+                    if b.hp <= 0:
+                        boss_list.remove(b)
+                        state = "GAMECLEAR" 
+                        
+                for bp in boss_projectiles[:]:
+                    if bp.update():
+                        boss_projectiles.remove(bp)
+                    else:
+                        # 탄막과 플레이어 충돌 검사
+                        if bp.pos.distance_to(player.pos) < bp.radius + player.radius:
+                            if not player.god_mode and getattr(player, 'invincible_timer', 0) <= 0:
+                                player.hp -= bp.damage
+                                player.invincible_timer = 60
+                            if bp in boss_projectiles:
+                                boss_projectiles.remove(bp)
+
+            MAX_DIST = 2000 
+            
             for p in projectiles[:]:
-                p.update() 
-                if p.pos.x < 0 or p.pos.x > WORLD_WIDTH or p.pos.y < 0 or p.pos.y > WORLD_HEIGHT: projectiles.remove(p)
+                # 💡 [핵심] p.update() 안에 enemies를 넣어서 센서가 적을 볼 수 있게 해줍니다!
+                is_finished = p.update(enemies) 
+                
+                if is_finished or p.pos.distance_to(player.pos) > MAX_DIST:
+                    if p in projectiles:
+                        projectiles.remove(p)
+                    
             for bm in boomerangs[:]:
-                if bm.update(player.pos): boomerangs.remove(bm)
+                if bm.update(player.pos) or bm.pos.distance_to(player.pos) > MAX_DIST: 
+                    boomerangs.remove(bm)
+                    
             for ck in chakrams[:]:
-                if ck.update(player.pos): chakrams.remove(ck)
+                if ck.update(player.pos) or ck.pos.distance_to(player.pos) > MAX_DIST: 
+                    chakrams.remove(ck)
+                    
             for bo in bouncing_orbs[:]:
-                if bo.update(): bouncing_orbs.remove(bo)
+                if bo.update() or bo.pos.distance_to(player.pos) > MAX_DIST: 
+                    bouncing_orbs.remove(bo)
             
             for sw in sword_waves[:]:
-                if sw.update(): sword_waves.remove(sw)
+                if sw.update() or sw.pos.distance_to(player.pos) > MAX_DIST: 
+                    sword_waves.remove(sw)
                 
             for fz in fire_zones[:]:
                 if fz.update(): fire_zones.remove(fz)
@@ -171,18 +243,39 @@ while running:
                 dt.update()
                 if dt.life <= 0: dmg_texts.remove(dt)
 
+            # -------------------------------------------------------------------
+            # 👇 여기서부터 복사해서 기존 for e in enemies[:]: 루프 전체를 덮어씌워 주세요!
+            # -------------------------------------------------------------------
             for e in enemies[:]:
-                e.update_timers(dmg_texts, player) 
-                e.move_towards_player(player.pos, player) 
+                # 1. 보스 판별 (가장 안전하고 확실한 클래스 이름 검사로 롤백)
+                is_boss = (e.__class__.__name__ == "Boss")
                 
+                # 2. 이동 및 상태 업데이트
+                if is_boss:
+                    e.update(player, boss_projectiles) 
+                elif e in enemies:
+                    e.move_towards_player(player_pos=player.pos, player_obj=player)
+                    if hasattr(e, "update_timers"):
+                        e.update_timers(dmg_texts, player)
+
+                # 3. 무기 충돌 및 데미지 계산
+                # 3. 무기 충돌 및 데미지 계산
                 for p in projectiles[:]:
-                    if e.pos.distance_to(p.pos) < e.radius + p.radius and e not in p.hit_targets:
+                    # 💡 [핵심] p.state가 "flying"일 때만 데미지를 줍니다!
+                    if getattr(p, "state", "flying") == "flying" and e.pos.distance_to(p.pos) < e.radius + getattr(p, "radius", 15) and e not in getattr(p, "hit_targets", []):
                         e.take_damage(p.damage, dmg_texts)
                         player.damage_stats[p.weapon_id] += p.damage
-                        p.hit_targets.append(e)
-                        p.pierce -= 1
-                        if p.pierce <= 0 and p in projectiles: projectiles.remove(p)
+                        
+                        if hasattr(p, "hit_targets"):
+                            p.hit_targets.append(e)
                             
+                        # 💡 삭제하는 대신 폭발 상태로 변경!
+                        if hasattr(p, "hit"):
+                            p.hit()
+                        elif hasattr(p, "pierce"): # hit()이 없는 옛날 투사체 대비용 호환 코드
+                            p.pierce -= 1
+                            if p.pierce <= 0 and p in projectiles: projectiles.remove(p)
+                        
                 for sw in sword_waves[:]:
                     if e.pos.distance_to(sw.pos) < e.radius + 50 and e not in sw.hit_targets:
                         e.take_damage(sw.damage, dmg_texts)
@@ -215,23 +308,54 @@ while running:
                             if e.can_receive_tick_damage("firezone", 20):
                                 e.take_damage(fz.damage, dmg_texts)
                                 player.damage_stats[fz.weapon_id] += fz.damage
-                        
+                
+                # 4. 데미지 적용이 모두 끝난 후 [단 한 번만] 수행하는 사망 판정
                 if e.hp <= 0:
-                    if e in enemies:
+                    if is_boss:
+                        print("✅ 보스 처치 성공! 클리어 화면으로 넘어갑니다.")
+                        state = "GAMECLEAR"
+                        break  # 보스가 죽었으므로 루프 즉시 탈출
+                        
+                    elif e in enemies:
                         enemies.remove(e)
                         player.kills += 1
-                        player.phase = (player.kills // KILLS_PER_PHASE) + 1
                         
+                        if player.kills < PHASE_THRESHOLDS[0]:
+                            player.phase = 1      
+                        elif player.kills < PHASE_THRESHOLDS[1]:
+                            player.phase = 2      
+                        elif player.kills < PHASE_THRESHOLDS[2]:
+                            player.phase = 3      
+                        else:
+                            player.phase = 4
+                        
+                        # 보석 병합(Clustering) 로직
                         from entities import ExpGem
-                        gems.append(ExpGem(e.pos, e.xp_reward))
+                        merge_radius = 100 
+                        merged = False
                         
-                for gem in gems[:]:
-                    if gem.update(player):
-                        player.xp += gem.amount
-                        gems.remove(gem)
+                        for gem in gems:
+                            if e.pos.distance_to(gem.pos) < merge_radius:
+                                gem.amount += e.xp_reward
+                                gem.radius = max(6, min(gem.amount // 3, 16)) 
+                                if gem.amount < 25: gem.color = GREEN
+                                elif gem.amount < 50: gem.color = CYAN
+                                elif gem.amount < 150: gem.color = YELLOW
+                                else: gem.color = RED
+                                
+                                merged = True
+                                break
+                                
+                        if not merged:
+                            gems.append(ExpGem(e.pos, e.xp_reward))
 
-            if player.hp <= 0:
-                state = "GAMEOVER" 
+            for gem in gems[:]:
+                if gem.update(player): # 보석이 플레이어에게 닿으면 True 반환
+                    gems.remove(gem)
+                    player.xp += gem.amount * XP_MULTIPLIER # Sub_config에 설정된 1.25배율 적용
+
+            if player.hp <= 0 and state != "GAMECLEAR":
+                state = "GAMEOVER"
 
     screen.fill(DARK_BG)
     
@@ -262,8 +386,48 @@ while running:
         # 👉 [이 줄이 있는지 반드시 확인하고 추가해 주세요!] 👈
         for gem in gems: gem.draw(screen, camera)
         
+        # (기존 화면 그리기 코드)
         for e in enemies: e.draw(screen, camera)
         player.draw(screen, camera)
+        
+        for bp in boss_projectiles: bp.draw(screen, camera)
+        
+        # --- [수정] 보스 체력바 UI 그리기 ---
+        # enemies 리스트 안에서 보스 클래스만 쏙 뽑아옵니다.
+        bosses = [e for e in enemies if e.__class__.__name__ == "Boss"]
+        
+        if boss_active and bosses:
+            b = bosses[0] # 첫 번째 보스
+            bar_width = 600
+            bar_height = 25
+            bar_x = WIDTH // 2 - bar_width // 2
+            bar_y = 30
+            hp_ratio = max(0, b.hp / b.max_hp)
+            
+            pygame.draw.rect(screen, (50, 50, 50), (bar_x, bar_y, bar_width, bar_height))
+            pygame.draw.rect(screen, RED, (bar_x, bar_y, int(bar_width * hp_ratio), bar_height))
+            pygame.draw.rect(screen, WHITE, (bar_x, bar_y, bar_width, bar_height), 3)
+            
+            boss_font = get_korean_font(24) 
+            boss_text = boss_font.render("BOSS", True, WHITE)
+            screen.blit(boss_text, (WIDTH // 2 - boss_text.get_width() // 2, bar_y - 30))
+        
+        # 화면 상단 거대 보스 체력바 UI
+        if boss_active and boss_list:
+            b = boss_list[0]
+            bar_width = 600
+            bar_height = 25
+            bar_x = WIDTH // 2 - bar_width // 2
+            bar_y = 30
+            hp_ratio = max(0, b.hp / b.max_hp)
+            
+            pygame.draw.rect(screen, (50, 50, 50), (bar_x, bar_y, bar_width, bar_height))
+            pygame.draw.rect(screen, RED, (bar_x, bar_y, int(bar_width * hp_ratio), bar_height))
+            pygame.draw.rect(screen, WHITE, (bar_x, bar_y, bar_width, bar_height), 3)
+            
+            boss_font = get_korean_font(24) # 폰트 함수명은 기존 코드에 맞게 확인
+            boss_text = boss_font.render("BOSS", True, WHITE)
+            screen.blit(boss_text, (WIDTH // 2 - boss_text.get_width() // 2, bar_y - 30))
 
         if dev_mode and show_mechanics:
             debug_font = pygame.font.SysFont("consolas", 16, bold=True)
@@ -543,6 +707,26 @@ while running:
         screen.blit(stat_text, (WIDTH // 2 - stat_text.get_width() // 2, HEIGHT // 2 + 20))
         screen.blit(restart_text, (WIDTH // 2 - restart_text.get_width() // 2, HEIGHT // 2 + 80))
 
+    elif state == "GAMECLEAR":
+        # 웅장한 클리어 화면 연출
+        screen.fill((10, 20, 40)) 
+        title_font = get_korean_font(80)
+        sub_font = get_korean_font(30)
+        
+        title_surf = title_font.render("GAME CLEAR!", True, YELLOW)
+        screen.blit(title_surf, (WIDTH // 2 - title_surf.get_width() // 2, HEIGHT // 2 - 100))
+        
+        sub_surf = sub_font.render("거대 보스를 물리치고 살아남았습니다.", True, WHITE)
+        screen.blit(sub_surf, (WIDTH // 2 - sub_surf.get_width() // 2, HEIGHT // 2 + 20))
+        
+        restart_surf = sub_font.render("R 키를 눌러 타이틀로 돌아가기", True, GREY)
+        screen.blit(restart_surf, (WIDTH // 2 - restart_surf.get_width() // 2, HEIGHT // 2 + 100))
+        
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_r]:
+            reset_game()
+            state = "TITLE"
+
     if state in ["PLAY", "PAUSE", "GAMEOVER"]:
         if pygame.key.get_pressed()[pygame.K_TAB]:
             dim_mask = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
@@ -579,6 +763,8 @@ while running:
                 pygame.draw.rect(screen, YELLOW, (WIDTH // 2 - 350, y_offset + 40, int(bar_width * (dmg / total_dmg_safe)), 15), border_radius=5)
                 
                 y_offset += 75
+
+    
 
     pygame.display.flip()
 

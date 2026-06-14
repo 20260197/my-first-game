@@ -5,7 +5,7 @@ UPGRADE_POOL = [
     {"id": "hp_up",       "type": "stat", "target_weapon": None, "name": "Vitality Core", "desc": "플레이어의 최대 체력이 +20 증가합니다."},
     {"id": "speed_up",    "type": "stat", "target_weapon": None, "name": "Adrenaline Drive", "desc": "기본 이동 속도가 10% 증가합니다."},
     {"id": "global_dmg",  "type": "stat", "target_weapon": None, "name": "Overwhelm", "desc": "전역 공격력 스탯이 15% 상승합니다."},
-    {"id": "screen_bomb", "type": "consumable", "target_weapon": None, "name": "Nuke: Annihilation", "desc": "[일회성] 맵 상의 모든 적을 즉시 처치합니다."},
+    {"id": "frenzy", "type": "consumable", "name": "광란의 각성", "desc": "[일회성] 10초 동안 아드레날린이 폭발하여 모든 무기의 데미지가 2배로 폭증합니다."},
 
     # 2. 신규 무기 해금 (Unlock)
     {"id": "unlock_melee", "type": "unlock",  "target_weapon": "melee", "name": "NEW: Spirit Sword", "desc": "스피릿 소드를 장착합니다. 전방으로 적을 관통하는 검기를 날립니다."},
@@ -30,7 +30,7 @@ UPGRADE_POOL = [
     {"id": "upgrade_chakram",  "type": "upgrade", "target_weapon": "chakram", "name": "Chakram: Hellfire", "desc": "차크람 관통 데미지가 +10, 화상 지속 데미지가 +5 증가합니다."},
     {"id": "upgrade_boomerang","type": "upgrade", "target_weapon": "boomerang", "name": "Boomerang: Swift", "desc": "부메랑의 왕복 타격 데미지가 +15 증가합니다."},
     {"id": "upgrade_bounce",   "type": "upgrade", "target_weapon": "bounce", "name": "Wand: Resonance", "desc": "마법봉(통통탄)의 타격 데미지가 +15 증가합니다."},
-    {"id": "upgrade_trail",    "type": "upgrade", "target_weapon": "trail", "name": "Meteor: Cataclysm", "desc": "메테오의 직격 데미지 및 장판 틱 데미지가 +15 증가합니다."},
+    {"id": "upgrade_trail", "type": "upgrade", "target_weapon": "trail", "name": "Meteor: Cataclysm", "desc": "메테오의 직격 데미지가 +15 증가하고, 화염 장판의 반경이 대폭 넓어집니다."},
     {"id": "union_storm", "type": "union", "target_weapon": "storm", "name": "UNION: Elemental Storm", "desc": "[합체!] 눈보라와 차크람을 융합하여 얼음과 불의 거대 폭풍을 발생시킵니다."}
 ]
 
@@ -51,30 +51,55 @@ def get_filtered_standard_pool(player):
                 pool.append(dynamic_card)
     return pool
 
+import random
+
 def generate_cards(player):
     standard_pool = get_filtered_standard_pool(player)
     unlock_pool = [c for c in UPGRADE_POOL if c["type"] == "unlock" and not player.weapons[c["target_weapon"]]["active"]]
     
+    if player.weapons["storm"]["active"]:
+        unlock_pool = [c for c in unlock_pool if c["target_weapon"] not in ["blizzard", "chakram"]]
+
     # =======================================================
     # [1순위] 합체 무기(Union) 조건 검사
-    # 두 무기가 모두 만렙(5)이고, 아직 합체 무기가 활성화되지 않았다면 무조건 등장
+    # 두 무기가 모두 만렙(3)이고, 아직 합체 무기가 활성화되지 않았다면 무조건 등장
     # =======================================================
     union_pool = []
-    if player.weapons["blizzard"]["level"] >= 5 and player.weapons["chakram"]["level"] >= 5 and not player.weapons["storm"]["active"]:
+    if player.weapons["blizzard"]["level"] >= 3 and player.weapons["chakram"]["level"] >= 3 and not player.weapons["storm"]["active"]:
         union_card = next((c for c in UPGRADE_POOL if c["id"] == "union_storm"), None)
         if union_card: union_pool.append(union_card)
         
     if union_pool:
-        guaranteed_card = union_pool[0]
-        other_choices = random.sample(standard_pool, min(2, len(standard_pool)))
-        final_cards = [guaranteed_card] + other_choices
+        guaranteed_union = random.choice(union_pool)
+        other_choices = random.sample(standard_pool, 2) if len(standard_pool) >= 2 else standard_pool[:]
+        final_cards = [guaranteed_union] + other_choices
         random.shuffle(final_cards) 
         return final_cards
 
     # =======================================================
-    # [2순위] 기존 4레벨 주기 신규 무기 해금 검사
+    # [1.5순위] 합체 재료 무기 초반 확정 등장 (시연용 템포업)
+    # 5레벨 이하일 때, 합체 재료인 눈보라와 차크람이 없다면 최우선으로 띄워줍니다.
     # =======================================================
-    needs_unlock = (player.level % 4 == 0)
+    material_targets = []
+    if not player.weapons["blizzard"]["active"]:
+        material_targets.append("blizzard")
+    if not player.weapons["chakram"]["active"]:
+        material_targets.append("chakram")
+
+    # 플레이어 레벨이 5 이하이고, 아직 획득하지 않은 재료가 있다면
+    if material_targets and player.level <= 5: 
+        material_cards = [c for c in unlock_pool if c["target_weapon"] in material_targets]
+        if material_cards:
+            guaranteed_mat = random.choice(material_cards)
+            other_choices = random.sample(standard_pool, 2) if len(standard_pool) >= 2 else standard_pool[:]
+            final_cards = [guaranteed_mat] + other_choices
+            random.shuffle(final_cards)
+            return final_cards
+
+    # =======================================================
+    # [2순위] 신규 무기 해금 검사 (등장 주기 4레벨 -> 2레벨로 단축)
+    # =======================================================
+    needs_unlock = (player.level % 2 == 0)  # 기존 % 4에서 % 2로 변경
     
     if needs_unlock and unlock_pool:
         guaranteed_weapon = random.choice(unlock_pool)
@@ -91,20 +116,16 @@ def generate_cards(player):
         final_cards = [guaranteed_weapon] + other_choices
         random.shuffle(final_cards) 
         return final_cards
+        
     else:
         return random.sample(standard_pool, min(3, len(standard_pool)))
 
 def apply_card_effect(player, card_id, enemies=None):
-    if card_id == "screen_bomb":
-        if enemies is not None:
-            for e in enemies:
-                player.kills += 1
-                player.xp += (e.xp_reward * 0.5)
-            enemies.clear()
-    elif card_id == "hp_up": player.max_hp += 20; player.hp += 20
+    if card_id == "hp_up": player.max_hp += 20; player.hp += 20
     elif card_id == "speed_up": player.speed *= 1.10
     elif card_id == "global_dmg": player.global_dmg_mult += 0.15
-    
+    elif card_id == "frenzy": player.frenzy_timer = 600
+
     # 무기 해금 로직 (startswith를 사용하여 코드 10줄을 하나로 통합)
     elif card_id.startswith("unlock_"):
         w_id = card_id.replace("unlock_", "")
@@ -166,6 +187,7 @@ def apply_card_effect(player, card_id, enemies=None):
     elif card_id == "upgrade_trail":
         player.weapons["trail"]["level"] += 1
         player.weapons["trail"]["base_damage"] += 15
+        player.weapons["trail"]["radius"] += 12  # [신규] 강화할 때마다 장판 반경이 12씩 확 늘어남!
         
     elif card_id == "union_storm":
         player.weapons["storm"]["active"] = True
